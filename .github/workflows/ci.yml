@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:coverage
+      - run: pnpm build
+
+      - name: Upload coverage
+        if: matrix.node == 22
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: error
+
+  wasm-check:
+    # 验证 src/wasm/pkg 与 src/wasm/inline.ts 与 crates/fbx-wasm 源码保持同步。
+    # 开发者本地修改 Rust 代码后必须 `pnpm build:wasm` 并提交产物。
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Rust toolchain (with wasm target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - run: pnpm install --frozen-lockfile
+      - name: Rebuild wasm and inline
+        run: pnpm build:wasm
+
+      - name: Ensure committed wasm artifacts match sources
+        run: |
+          if ! git diff --quiet -- src/wasm/pkg src/wasm/inline.ts; then
+            echo "::error::src/wasm/pkg or src/wasm/inline.ts is out of date."
+            echo "Run \`pnpm build:wasm\` locally and commit the changes."
+            git diff --stat -- src/wasm/pkg src/wasm/inline.ts
+            exit 1
+          fi
