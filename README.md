@@ -41,12 +41,15 @@ await ensureWasmReady()
 - 内部实现字段 `propertyList` / `singleProperty` 可能与 `parse()` 有差异（wasm 侧对这两个字段做了 move 优化避免 clone 巨型数组）；用户可见的 `.a` / `.value` / `id` / `attrName` 等字段完全对齐
 - Rust 源码在 `crates/fbx-wasm/`；生成物在 `src/wasm/pkg/` 与 `src/wasm/inline.ts`
 
-**性能特征**（Windows / Node 26 实测，动画类 FBX 目录）：
+**性能特征**（Windows / Node 26 实测，动画类 FBX，TS 侧已用 fflate + typed-array 优化）：
 
-- 4-6 MB 大文件：wasm ≈ **3.8-3.9× 快**
-- 2-3 MB 中大文件：wasm ≈ 2-3.6× 快
-- 1.5-2 MB 中等文件：wasm ≈ 2× 快
-- < 1.5 MB 小文件（TS 自身 <20 ms）：wasm 反而慢 0.4-0.7×
+| 文件大小 | TS `parse()` | wasm `parseWasm()` | wasm/TS |
+|---:|---:|---:|---:|
+| 1.3 MB | 31 ms | 53 ms | 0.59× |
+| 4.1 MB | 685 ms | 111 ms | 6.20× |
+| 5.7 MB | 432 ms | 128 ms | 3.38× |
+| 10.6 MB | 518 ms | 175 ms | 2.95× |
+| 17.3 MB | 817 ms | 271 ms | 3.02× |
 
 wasm 有约 30 ms 固定开销（wasm 调用 + `Object`/`Reflect::set` 构造 tree + `Float64Array` 拷贝），只有数据密集型文件才能摊销回来。若目标是大量小 FBX，仍推荐 TS 后端。
 

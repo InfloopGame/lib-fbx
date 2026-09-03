@@ -2,6 +2,7 @@
 
 - Node >= 20，pnpm 11（`packageManager` 锁定）。
 - TypeScript、tsup、vitest、eslint flat + typescript-eslint。
+- Runtime 依赖：`fflate`（zlib 解压，取代原手写 DEFLATE）。
 - CI：GitHub Actions，矩阵 Node 20/22/24；额外 `wasm-check` job 验证 Rust 产物一致性。
 - 发布：npm Trusted Publishing，workflow 文件名必须是 `publish.yml`；不要在 publish job 里设置空的 `registry-url` / `NODE_AUTH_TOKEN`，以免挡住 OIDC。
 

@@ -70,5 +70,8 @@
     "typescript-eslint": "^8.69.0",
     "vitest": "^4.1.11",
     "wasm-pack": "^0.15.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
   }
 }

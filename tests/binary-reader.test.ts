@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BinaryReader } from '../src/binary-reader'
 import { inflate, setInflateRecorder } from '../src/inflate'
+import { FbxError } from '../src/util'
 import { deflateSync } from 'node:zlib'
 
 function bytes(...values: number[]): Uint8Array {
@@ -152,7 +153,35 @@ describe('BinaryReader basic ops', () => {
   })
 })
 
-describe('inflate recorder (debug hook)', () => {
+describe('inflate', () => {
+  it('rejects too-short input', () => {
+    expect(() => inflate(new Uint8Array(3))).toThrow(/input too short/)
+  })
+
+  it('rejects non-deflate compression method (CMF low nibble != 8)', () => {
+    // 6 字节最小长度；CMF=0x00 → method=0，触发 unsupported
+    expect(() => inflate(new Uint8Array([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))).toThrow(
+      /unsupported compression method/,
+    )
+  })
+
+  it('wraps fflate errors as INVALID_DATA', () => {
+    // 合法 zlib 头 + 合法尾长度，但中间 payload 是截断的动态 Huffman block，fflate 会抛 "invalid X"
+    const full = deflateSync(Buffer.alloc(4096, 0x41)) // 大 payload 保证走动态块
+    // 只保留头 2B + 前 4B payload + 4B fake adler，凑够 length >= 6 且触发解码失败
+    const truncated = new Uint8Array(10)
+    truncated.set(full.subarray(0, 6))
+    let threw = false
+    try {
+      inflate(truncated)
+    } catch (e) {
+      threw = true
+      expect(e).toBeInstanceOf(FbxError)
+      expect((e as FbxError).code).toBe('INVALID_DATA')
+    }
+    expect(threw).toBe(true)
+  })
+
   it('setInflateRecorder captures then releases', () => {
     const payload = new Uint8Array(deflateSync(Buffer.from('hello world')))
     const records: Array<{ input: Uint8Array; output: Uint8Array }> = []

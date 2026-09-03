@@ -43,6 +43,20 @@ WASM 后端性能已优化（初始问题：动画类大 FBX wasm 反而慢 100 
 
 **breaking change**：下游若消费 `.a` 是 `number[]`，需改为按 typed array 遍历或 `Array.from()` 转。
 
+**手写 inflate → fflate**：
+
+`src/inflate.ts` 从 190 行 pure-JS DEFLATE（手写 Huffman/LZ77）换成 `fflate.unzlibSync`。收益：
+- 17.3 MB 动画：TS 从 1515ms → 817ms（**1.85x**，吞吐 11.4→21.7 MB/s）
+- 覆盖率从 65% → 100%（少 190 行复杂代码 + 更容易测所有分支）
+- fflate 4KB gzipped 依赖成本
+
+**没做 Node `zlib.inflateSync` 快路径**的原因：
+- ESM Node 里 `require` 拿不到（`import.meta.url` + `createRequire` 与 CJS output 不能共存），需 conditional exports 分双 entry，工程复杂度 > 收益
+- fflate 5-10x 已把 inflate 从瓶颈里移出去，wasm 之外剩余的 TS 大头在 tree 构造 / object 分配
+- 若未来确有需求，加 `setInflater(fn)` hook 让 Node 用户手工注入 `zlib.inflateSync` 即可
+
+`scripts/verify-inflate.ts` 保留但已不太必要（fflate 是 battle-tested），仍能配合 `setInflateRecorder` 做三方对比（fflate / node:zlib / wasm miniz_oxide）。
+
 **一致性验证 & 顺带修复的 TS 侧历史 bug**：
 
 `scripts/verify-inflate.ts` + `pnpm bench -- --diff <dir>` 做了两端 tree 深度对比。跑用户 882 个动画 FBX：初次 4/18 有 diff → 定位到根因不是 wasm 侧，是 `src/binary-reader.ts` 的 `getInt64` 对大负 i64 静默错读：
