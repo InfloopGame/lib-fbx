@@ -5,6 +5,7 @@
 - Runtime 依赖：`fflate`（zlib 解压，取代原手写 DEFLATE）。
 - CI：GitHub Actions，矩阵 Node 20/22/24；额外 `wasm-check` job 验证 Rust 产物一致性。
 - 包名：`@infloopgame/lib-fbx`（npm 组织 `infloopgame`）。
+- 锁文件必须对 `registry.npmjs.org` 解析。仓库根 `.npmrc` 固定官方源，避免 verdaccio / npmmirror 把 tarball URL 写进 `pnpm-lock.yaml`（CI 的供应链校验会失败）。
 - 发布：npm Trusted Publishing，workflow 文件名必须是 `publish.yml`；不要在 publish job 里设置空的 `registry-url` / `NODE_AUTH_TOKEN`，以免挡住 OIDC。新建 Trusted Publisher 须显式允许 `npm publish`。
 
 ## Rust/WASM 工具链
