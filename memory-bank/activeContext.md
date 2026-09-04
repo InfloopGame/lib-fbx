@@ -1,6 +1,6 @@
 # Active Context
 
-刚完成 npm 库初始化：公共 API（detect/parse/error）、全覆盖测试、CI、npm 发布流水线。
+包名已改为 `@infloopgame/lib-fbx`，准备发到 npm 组织 `infloopgame`。公共 API（detect/parse/error）、全覆盖测试、CI、OIDC 发布流水线已就绪。
 
 新增 Rust/WASM 可选后端：`parseWasm(input): Promise<FbxDocument>`（仅 binary），Rust 源码在 `crates/fbx-wasm/`，`wasm-pack` 打包，`src/wasm/inline.ts` 内联 base64 分发。CI 里新增 `wasm-check` job 校验产物与源码同步。
 

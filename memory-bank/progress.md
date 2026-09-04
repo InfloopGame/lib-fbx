@@ -17,4 +17,4 @@
 - FBX 几何 / 动画高层建模（当前只有 tree/属性）
 - 补齐 `inflate` / `binary-reader` / `text-parser` 分支覆盖，把覆盖率门槛抬回 100
 - wasm 后端支持 ASCII（可选）
-- 首次发布前需在 npmjs.com 配置 Trusted Publisher
+- 首次发布前需在 npmjs.com 为 `@infloopgame/lib-fbx` 配置 Trusted Publisher（允许 `npm publish`）

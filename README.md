@@ -5,13 +5,13 @@ FBX 文件解析与处理库。
 ## 安装
 
 ```bash
-pnpm add lib-fbx
+pnpm add @infloopgame/lib-fbx
 ```
 
 ## 使用
 
 ```ts
-import { detectFormat, parse } from 'lib-fbx'
+import { detectFormat, parse } from '@infloopgame/lib-fbx'
 
 const format = detectFormat(fbxBuffer) // 'binary' | 'ascii'
 const scene = parse(fbxBuffer)
@@ -26,7 +26,7 @@ const scene = parse(fbxBuffer)
 针对 binary FBX 提供了纯 Rust 的可选后端，通过内联 base64 打包在 npm 包内，无需额外文件或 fetch：
 
 ```ts
-import { parseWasm, ensureWasmReady } from 'lib-fbx'
+import { parseWasm, ensureWasmReady } from '@infloopgame/lib-fbx'
 
 // 首次调用会异步初始化 wasm 模块；后续调用复用
 const doc = await parseWasm(fbxBuffer)
@@ -87,10 +87,20 @@ pnpm build:wasm
 发布前：
 
 1. 把 `package.json` 的 `version` 改成目标版本（与 tag 去掉 `v` 后一致）。
-2. 在 [npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers) 绑定：
-   - Organization：`InfloopGame`
+2. 在 [npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers) 绑定（包还不存在时可用 CLI）：
+   - npm 包名：`@infloopgame/lib-fbx`
+   - GitHub Organization：`InfloopGame`
    - Repository：`lib-fbx`
    - Workflow filename：`publish.yml`
+   - Allowed actions：勾选 **npm publish**（2026-09-03 之后新建配置默认只允许 stage）
+
+   ```bash
+   npm trust github @infloopgame/lib-fbx \
+     --file publish.yml \
+     --repo InfloopGame/lib-fbx \
+     --allow-publish \
+     -y
+   ```
 3. 推送 tag：
 
 ```bash
