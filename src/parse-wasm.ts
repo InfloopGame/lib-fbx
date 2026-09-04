@@ -1,6 +1,6 @@
 import { detectFormat } from './detect'
 import { normalizeFbx6Tree } from './normalize-fbx6'
-import type { FbxDocument, FbxInput, FbxTreeData } from './types'
+import type { FbxInput, FbxParseResult, FbxTreeData } from './types'
 import { FbxError, FbxTree, toBytes } from './util'
 import { parseBinaryWithWasm } from './wasm/loader'
 
@@ -8,7 +8,7 @@ import { parseBinaryWithWasm } from './wasm/loader'
  * 使用 Rust/WASM 后端解析 binary FBX；ASCII 仍需走 {@link parse}。
  * 首次调用会异步初始化内联的 wasm 模块，后续复用。
  */
-export async function parseWasm(input: FbxInput): Promise<FbxDocument> {
+export async function parseWasm(input: FbxInput): Promise<FbxParseResult> {
   const format = detectFormat(input)
   if (format !== 'binary') {
     throw new FbxError('UNKNOWN_FORMAT', 'parseWasm currently supports binary FBX only')

@@ -3,9 +3,9 @@ import { detectFormat, getFbxVersion } from './detect'
 import { FbxError, toArrayBuffer, toBytes } from './util'
 import { normalizeFbx6Tree } from './normalize-fbx6'
 import { TextParser } from './text-parser'
-import type { FbxDocument, FbxInput, FbxTreeData } from './types'
+import type { FbxInput, FbxParseResult, FbxTreeData } from './types'
 
-export function parse(input: FbxInput): FbxDocument {
+export function parse(input: FbxInput): FbxParseResult {
   const format = detectFormat(input)
   const bytes = toBytes(input)
 

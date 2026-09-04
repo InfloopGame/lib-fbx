@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>lib-fbx viewer</title>
+  </head>
+  <body>
+    <div id="hud">
+      <header>
+        <strong>lib-fbx</strong>
+        <span>Three.js viewer</span>
+      </header>
+      <label class="file">
+        打开 FBX
+        <input id="file" type="file" accept=".fbx,application/octet-stream" />
+      </label>
+      <button type="button" id="fixture">加载 MuscleMan fixture</button>
+      <label class="check"><input id="wasm" type="checkbox" /> parseWasm</label>
+      <label class="check"><input id="wire" type="checkbox" /> 线框</label>
+      <label class="check"><input id="skel" type="checkbox" /> 骨骼</label>
+      <label class="check"><input id="grid" type="checkbox" checked /> 网格</label>
+      <pre id="stat">拖入或选择 .fbx</pre>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

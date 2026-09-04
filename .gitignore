@@ -12,3 +12,9 @@ coverage
 # Rust
 crates/*/target/
 Cargo.lock
+
+# FBX SDK dump tool
+tools/fbx-dump/build/
+tools/fbx-dump/fbx-dump.exe
+tools/fbx-dump/*.sdk.json
+tools/fbx-viewer/dist/

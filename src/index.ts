@@ -10,14 +10,14 @@ export { FbxError, FbxTree, version } from './util'
 export type {
   FbxConnectionTuple,
   FbxConnections,
-  FbxDocument,
   FbxErrorCode,
   FbxFormat,
-  FbxGlobalSettings,
   FbxInput,
-  FbxNode,
   FbxObjects,
-  FbxProperty,
-  FbxPropertyValue,
+  FbxParseResult,
+  FbxProperty as FbxTreeProperty,
+  FbxPropertyValue as FbxTreePropertyValue,
   FbxTreeData,
+  FbxTreeNode,
 } from './types'
+export * from './sdk'

@@ -11,13 +11,16 @@ pnpm add @infloopgame/lib-fbx
 ## 使用
 
 ```ts
-import { detectFormat, parse } from '@infloopgame/lib-fbx'
+import { detectFormat, parse, buildScene } from '@infloopgame/lib-fbx'
 
 const format = detectFormat(fbxBuffer) // 'binary' | 'ascii'
-const scene = parse(fbxBuffer)
+const doc = parse(fbxBuffer)
+const scene = buildScene(doc) // 或 buildScene(doc.tree)
 ```
 
-`parse()` 返回 `{ format, version, tree }`。测试放在仓库根目录 `tests/`，不与 `src` 混放。
+`parse()` 返回 `FbxParseResult`：`{ format, version, tree }`（文件节点树）。`buildScene()` 把 tree 组装成 SDK 风格的 `FbxScene`（节点层级、几何、材质、动画、连接）。测试放在仓库根目录 `tests/`，不与 `src` 混放。
+
+与 Autodesk FBX SDK 2020.2.1 对齐的场景对象类型在 `src/sdk/`（`FbxScene` / `FbxNode` / `FbxMesh` 等），由包入口再导出。`FbxDocument` 现在指 SDK 文档对象，不是 parse 结果。
 
 **数字数组类型**：从 v0.0.x 开始，binary 与 ASCII 两端解析出的 int32 / int64 / float32 / float64 数组（如 `Vertices.a` / `PolygonVertexIndex.a` / `KeyTime.a` / `Matrix.a`）**统一返回 `Float64Array`**，与 wasm 后端对齐。3-元素 tuple（如 `Lcl_Translation.value`）保留 `number[]`。Boolean 数组和字节 blob（`Content` 等）不变。下游若需要 `number[]`，用 `Array.from(v)` 转换即可。
 
@@ -36,7 +39,7 @@ await ensureWasmReady()
 ```
 
 - 仅支持 binary FBX；ASCII 请继续用 `parse()`
-- 返回结构与 `parse()` 一致（`FbxDocument`）；FBX 6.x 也会走 `normalizeFbx6Tree`
+- 返回结构与 `parse()` 一致（`FbxParseResult`）；FBX 6.x 也会走 `normalizeFbx6Tree`
 - 数字数组已在两端统一为 `Float64Array`（详见上文"数字数组类型"）
 - 内部实现字段 `propertyList` / `singleProperty` 可能与 `parse()` 有差异（wasm 侧对这两个字段做了 move 优化避免 clone 巨型数组）；用户可见的 `.a` / `.value` / `id` / `attrName` 等字段完全对齐
 - Rust 源码在 `crates/fbx-wasm/`；生成物在 `src/wasm/pkg/` 与 `src/wasm/inline.ts`
@@ -69,6 +72,7 @@ pnpm bench -- --iterations 5 D:/models # 每文件每后端跑 N 次取中位数
 pnpm bench -- --js-only D:/models     # 仅 TS 后端
 pnpm bench -- --wasm-only D:/models   # 仅 Rust/WASM 后端（自动跳过 ascii）
 pnpm bench -- --diff D:/models        # 两端解析结果一致性对比（TS parse vs WASM parseWasm）
+pnpm viewer                           # Three.js 查看器（本库 parse + buildScene 导入）
 
 # 三方 inflate 对比（诊断压缩数据一致性问题时用）
 pnpm tsx scripts/verify-inflate.ts path/to/file.fbx

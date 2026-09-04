@@ -2,7 +2,13 @@
 
 包名已改为 `@infloopgame/lib-fbx`，准备发到 npm 组织 `infloopgame`。公共 API（detect/parse/error）、全覆盖测试、CI、OIDC 发布流水线已就绪。
 
-新增 Rust/WASM 可选后端：`parseWasm(input): Promise<FbxDocument>`（仅 binary），Rust 源码在 `crates/fbx-wasm/`，`wasm-pack` 打包，`src/wasm/inline.ts` 内联 base64 分发。CI 里新增 `wasm-check` job 校验产物与源码同步。
+新增 Rust/WASM 可选后端：`parseWasm(input): Promise<FbxParseResult>`（仅 binary），Rust 源码在 `crates/fbx-wasm/`，`wasm-pack` 打包，`src/wasm/inline.ts` 内联 base64 分发。CI 里新增 `wasm-check` job 校验产物与源码同步。
+
+已加入与 FBX SDK 2020.2.1 对齐的 TypeScript 场景对象层（`src/sdk/`）。parse 结果从 `FbxDocument` 改名为 `FbxParseResult`，把 `FbxDocument` / `FbxScene` / `FbxNode` 留给 SDK 类型。`buildScene(tree | FbxParseResult)` 把 parse tree 组装成 `FbxScene`。
+
+当前对齐目标是 **Importer 只读对象图**（不做 EvaluateLocal/GlobalTransform、不做动画采样）。先把 `tests/fixtures/20269546453281.fbx` 对到 `fbx-dump` 金标准：节点层级 / TRS / Mesh+Skin+Cluster（TransformLink）/ 材质 diffuse / DisplayLayer 成员 / 贴图路径 / 轴系。`GetUniqueID()` 是 SDK 运行时 ID，对照靠 classId + 名字 + 拓扑。Cluster.Transform 因轴转换与 SDK 不一致，金标准只对 TransformLink。SDK 注入的 `FbxAnimEvalClassic` / `FbxDocumentInfo` 不造。
+
+官方 SDK 对照工具：`tools/fbx-dump/` 用 Autodesk FBX SDK 2020.2.1 把 scene 完整导出为 JSON（对象/属性/连接/网格/蒙皮/动画）。用法：`tools/fbx-dump/fbx-dump.exe scene.fbx [-o out.json]`。`GetUniqueID()` 是 SDK 运行时 ID，与文件 Objects 里的 UniqueId 不同；对照本库应靠 classId + name + 连接拓扑 + 几何/曲线数据。
 
 WASM 后端性能已优化（初始问题：动画类大 FBX wasm 反而慢 100 倍）。分两轮优化：
 
@@ -82,4 +88,8 @@ WASM 后端性能已优化（初始问题：动画类大 FBX wasm 反而慢 100 
 - `BinaryParser` 现在也会剥离 `attrName` 的 `TypeName::` 前缀，行为对齐 ASCII `TextParser`。
 - 覆盖率门槛暂降为 lines/statements 85、branches 70（原为 100），待补齐 `inflate` / `binary-reader` / `text-parser` 分支测试后回到 100。
 
-下一步：完善 ASCII/binary 解析的边界测试，抬升覆盖率；探索 wasm 后端也支持 ASCII。
+角色 fixture `20269546453281.fbx` 已对 Autodesk SDK dump 做全量 `buildScene` 对照（`tests/sdk-gold-character.test.ts` + 约 14MB gold）。`buildScene` 现解析 SkinningType=Blend、CollectionExclusive→DisplayLayer、材质 DiffuseColor OP、Video `Filename`。故意不对齐：SDK 导入后的轴转换矩阵（localTransform / Cluster.Transform / GetAxisSystem）。
+
+角色 fixture 全量 SDK gold 已对齐。`tools/fbx-viewer` 用 `parse`/`buildScene` 把 FBX 转成 Three.js 场景（`pnpm viewer`）。蒙皮绑定用 TransformLink 逆矩阵；节点 Lcl 用 FBX 外旋对应的 three 内旋（缺省 `ZYX`）和完整 `generateTransform`，角色骨骼场景姿势与 Nail 对齐（Head ≈ `(72.5, -59.7, 177.9)`）。
+
+下一步：铺其它 fixture 的 dump 金标准；完善 ASCII/binary 解析边界测试，抬升覆盖率；探索 wasm 后端也支持 ASCII。

@@ -17,3 +17,15 @@
 - `wasm-opt` 通过 Cargo.toml 的 `[package.metadata.wasm-pack.profile.release]` 传 `--enable-bulk-memory` 等 flag，以支持较新 wasm feature 集。release profile 用 `opt-level = 3` + `wasm-opt -O3`（性能优先，体积略大）。
 - **不要**引入 `serde-wasm-bindgen`：它把 `Vec<f64>` 逐元素 `Array::set`，几十万级动画曲线会慢几十倍。走 `js-sys` 手写 `to_js`，数字数组用 `Float64Array::from`。
 - Rust 侧要极力避免 `.cloned()` 大 IndexMap / 大 Vec；用 `get_mut` / `shift_remove` / `std::mem::replace` 就地改写。
+
+## FBX SDK dump 工具
+
+- 源码：`tools/fbx-dump/`，静态链接 `D:/Tools/FBX SDK/2020.2.1` 的 vs2019 x64 release `/MD` 库。
+- 编译：`tools/fbx-dump/build.bat`，或 CMake `Visual Studio 17 2022` + `cmake --build build --config Release`。
+- 产物：`tools/fbx-dump/fbx-dump.exe`（gitignore）。JSON 含 objects / properties / connections / typed（Mesh/Skin/AnimCurve 等）。
+
+## Three.js 查看器
+
+- `tools/fbx-viewer/`，`pnpm viewer` → Vite `127.0.0.1:4173`（Windows 上 5173 常被 Hyper-V 排除）。
+- 别名直连 `src/index.ts`，用 `parse` / `parseWasm` + `buildScene`，不走 three `FBXLoader`。节点矩阵对齐 FBXLoader 的 `getEulerOrder` + `generateTransform`；蒙皮 `Inverse(TransformLink)`。
+- 依赖：`three`、`vite`（根目录 devDependencies）。

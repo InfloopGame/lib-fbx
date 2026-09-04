@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { parse } from '../src/parse'
 import { ensureWasmReady, parseWasm } from '../src/parse-wasm'
 import { FbxError } from '../src/util'
-import type { FbxDocument } from '../src/types'
+import type { FbxParseResult } from '../src/types'
 import { loadFixture } from './helpers/load-fixture'
 
-function objects(doc: FbxDocument): Record<string, Record<string, Record<string, unknown>>> {
+function objects(doc: FbxParseResult): Record<string, Record<string, Record<string, unknown>>> {
   return (doc.tree.Objects ?? {}) as Record<string, Record<string, Record<string, unknown>>>
 }
 
@@ -72,6 +72,7 @@ describe('parseWasm', () => {
     'binary-7400-triangle.fbx',
     'binary-7500-props.fbx',
     'binary-6100-embedded.fbx',
+    '20269546453281.fbx',
   ]) {
     it(`matches TS backend for ${fixture}`, async () => {
       const bytes = loadFixture(fixture)

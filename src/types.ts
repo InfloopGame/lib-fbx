@@ -25,7 +25,7 @@ export type FbxProperty =
   | Float64Array
   | ArrayBuffer
 
-export interface FbxNode {
+export interface FbxTreeNode {
   name: string
   propertyList: FbxProperty[]
   [key: string]: unknown
@@ -238,7 +238,7 @@ export interface FbxGlobalSettings {
   [key: string]: unknown
 }
 
-export interface FbxDocument {
+export interface FbxParseResult {
   format: FbxFormat
   version: number
   tree: FbxTreeData
