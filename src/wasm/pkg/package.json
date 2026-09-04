@@ -1,0 +1,16 @@
+{
+  "name": "fbx-wasm",
+  "type": "module",
+  "description": "WebAssembly binary FBX parser backend for lib-fbx",
+  "version": "0.1.0",
+  "files": [
+    "fbx_wasm_bg.wasm",
+    "fbx_wasm.js",
+    "fbx_wasm.d.ts"
+  ],
+  "main": "fbx_wasm.js",
+  "types": "fbx_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

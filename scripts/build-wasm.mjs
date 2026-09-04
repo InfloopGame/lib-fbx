@@ -8,7 +8,7 @@
 // `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu`。
 
 import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -39,6 +39,9 @@ const result = spawnSync(wasmPack, args, {
 if (result.status !== 0) {
   process.exit(result.status ?? 1)
 }
+
+// wasm-pack writes pkg/.gitignore with `*`, which would hide committed artifacts.
+rmSync(join(outDir, '.gitignore'), { force: true })
 
 const wasmPath = join(outDir, 'fbx_wasm_bg.wasm')
 const wasmBytes = readFileSync(wasmPath)

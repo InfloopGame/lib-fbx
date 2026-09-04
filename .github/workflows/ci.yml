@@ -66,9 +66,11 @@ jobs:
 
       - name: Ensure committed wasm artifacts match sources
         run: |
-          if ! git diff --quiet -- src/wasm/pkg src/wasm/inline.ts; then
+          if ! git diff --quiet -- src/wasm/pkg src/wasm/inline.ts \
+            || [ -n "$(git ls-files --others --exclude-standard -- src/wasm/pkg src/wasm/inline.ts)" ]; then
             echo "::error::src/wasm/pkg or src/wasm/inline.ts is out of date."
             echo "Run \`pnpm build:wasm\` locally and commit the changes."
+            git status --short -- src/wasm/pkg src/wasm/inline.ts
             git diff --stat -- src/wasm/pkg src/wasm/inline.ts
             exit 1
           fi
