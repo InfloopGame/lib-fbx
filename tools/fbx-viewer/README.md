@@ -1,6 +1,6 @@
 # FBX Three.js viewer
 
-用本仓库 `parse` / `parseWasm` + `buildScene` 导入 FBX，转成 Three.js 场景查看。
+用本仓库 `parse` + `buildScene` 导入 FBX，转成 Three.js 场景查看。
 
 不走 three 自带的 `FBXLoader`。贴图路径多为 DCC 绝对路径，浏览器里加载不到，目前用漫反射色 / 顶点色。
 

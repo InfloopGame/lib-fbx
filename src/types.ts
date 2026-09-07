@@ -11,8 +11,8 @@ export type FbxErrorCode =
 /**
  * 单个 FBX 属性值。
  *
- * 数字数组约定：所有 int32 / int64 / float32 / float64 数组统一为 `Float64Array`，
- * 与 wasm 后端对齐。int64 遵循 JavaScript number 的 2^53 精度限制。
+ * 数字数组约定：所有 int32 / int64 / float32 / float64 数组统一为 `Float64Array`。
+ * int64 遵循 JavaScript number 的 2^53 精度限制。
  * `number[]` 只出现在 3-元素 tuple 语义（如 `Lcl_Translation.value`）。
  */
 export type FbxProperty =

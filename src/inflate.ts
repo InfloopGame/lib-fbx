@@ -12,7 +12,7 @@
 import { unzlibSync } from 'fflate'
 import { FbxError } from './util'
 
-/** 调试用 recorder：非 undefined 时会记录每次 inflate 的 input/output，供 scripts/verify-inflate.ts 三方对比。 */
+/** 调试用 recorder：非 undefined 时会记录每次 inflate 的 input/output，供 scripts/verify-inflate.ts 对比。 */
 export let inflateRecorder: Array<{ input: Uint8Array; output: Uint8Array }> | undefined
 
 export function setInflateRecorder(rec: Array<{ input: Uint8Array; output: Uint8Array }> | undefined): void {

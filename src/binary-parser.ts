@@ -98,8 +98,7 @@ export class BinaryParser {
     if (subNode.singleProperty === true) {
       const value = (subNode.propertyList as FbxProperty[])[0]
 
-      // 数字数组现在返回 Float64Array（binary-reader 优化 + 与 wasm 后端对齐），
-      // Array.isArray 认不出来。boolean 数组仍是 boolean[]，会走 Array.isArray 分支。
+      // 数字数组返回 Float64Array，Array.isArray 认不出来。boolean 数组仍是 boolean[]。
       if (Array.isArray(value) || value instanceof Float64Array) {
         node[subName] = subNode
         subNode.a = value

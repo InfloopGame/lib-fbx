@@ -190,8 +190,7 @@ export class TextParser {
       case 'Lcl_Translation':
       case 'Lcl_Rotation':
       case 'Lcl_Scaling':
-        // 3-tuple 保持 number[]（长度小、tuple 语义），与 wasm 后端 assign_property70 里
-        // `FbxValue::Array(vec![pl[4], pl[5], pl[6]])` 输出的 JS Array 对齐。
+        // 3-tuple 保持 number[]（长度小、tuple 语义）。
         innerPropValue = parseNumberTuple(innerPropValue as string)
         break
     }
@@ -208,7 +207,7 @@ export class TextParser {
 
 /**
  * 数据数组（`.a` 后的顶点/权重/keyframe 等）解析为 Float64Array。
- * 与 binary-reader 和 wasm 后端约定一致：所有数字数组统一用 Float64Array 减少内存与遍历开销。
+ * 与 binary-reader 约定一致：所有数字数组统一用 Float64Array 减少内存与遍历开销。
  */
 function parseNumberArray(value: string): Float64Array {
   const parts = value.split(',')

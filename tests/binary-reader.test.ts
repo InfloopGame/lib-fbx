@@ -119,7 +119,7 @@ describe('BinaryReader basic ops', () => {
     dv.setFloat32(16, 1.5, true)
     dv.setFloat64(20, 3.5, true)
     const r = new BinaryReader(new Uint8Array(buf))
-    // 数字数组统一 Float64Array（与 wasm 后端对齐，并触发 binary-reader 的 slice+typed-array 快路径）
+    // 数字数组统一 Float64Array（触发 binary-reader 的 slice+typed-array 快路径）
     expect(r.getInt32Array(2)).toEqual(new Float64Array([1, -1]))
     expect(r.getInt64Array(1)).toEqual(new Float64Array([-2309307900]))
     expect(r.getFloat32Array(1)).toEqual(new Float64Array([1.5]))

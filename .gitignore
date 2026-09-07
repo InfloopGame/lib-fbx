@@ -9,10 +9,6 @@ coverage
 *.tsbuildinfo
 *.tgz
 
-# Rust
-crates/*/target/
-Cargo.lock
-
 # FBX SDK dump tool
 tools/fbx-dump/build/
 tools/fbx-dump/fbx-dump.exe

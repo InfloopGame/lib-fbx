@@ -12,14 +12,13 @@ import {
   WebGLRenderer,
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { buildScene, parse, parseWasm } from '@infloopgame/lib-fbx'
+import { buildScene, parse } from '@infloopgame/lib-fbx'
 import { fbxSceneToThree, type ConvertResult } from './fbx-to-three'
 
 const canvasHost = document.body
 const stat = document.querySelector('#stat') as HTMLPreElement
 const fileInput = document.querySelector('#file') as HTMLInputElement
 const fixtureBtn = document.querySelector('#fixture') as HTMLButtonElement
-const wasmBox = document.querySelector('#wasm') as HTMLInputElement
 const wireBox = document.querySelector('#wire') as HTMLInputElement
 const skelBox = document.querySelector('#skel') as HTMLInputElement
 const gridBox = document.querySelector('#grid') as HTMLInputElement
@@ -105,7 +104,7 @@ async function loadBytes(buf: ArrayBuffer, label: string): Promise<void> {
   const t0 = performance.now()
   stat.textContent = `解析 ${label} …`
   try {
-    const doc = wasmBox.checked ? await parseWasm(buf) : parse(buf)
+    const doc = parse(buf)
     const fbx = buildScene(doc)
     const t1 = performance.now()
     clear()
@@ -122,7 +121,6 @@ async function loadBytes(buf: ArrayBuffer, label: string): Promise<void> {
       `parse+build ${(t1 - t0).toFixed(0)} ms  toThree ${(t2 - t1).toFixed(0)} ms`,
       `nodes ${s.nodes}  mesh ${s.meshes}  tri ${s.triangles}`,
       `bones ${s.bones}  cluster ${s.clusters}  mat ${s.materials}`,
-      wasmBox.checked ? 'backend wasm' : 'backend ts',
     ].join('\n')
   } catch (err) {
     stat.textContent = `失败: ${err instanceof Error ? err.message : String(err)}`

@@ -2,8 +2,8 @@
  * FBX 二进制底层读取器
  * 封装 DataView，提供逐类型顺序读取能力
  *
- * 数字数组约定：所有 int32 / int64 / float32 / float64 数组统一返回 `Float64Array`，
- * 与 wasm 后端对齐。int64 遵循 JavaScript number 的 2^53 精度限制。
+ * 数字数组约定：所有 int32 / int64 / float32 / float64 数组统一返回 `Float64Array`。
+ * int64 遵循 JavaScript number 的 2^53 精度限制。
  */
 
 /**
