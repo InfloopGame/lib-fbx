@@ -10,7 +10,7 @@
  *   - 未来若确有需求可以补一个 `setInflater(fn)` hook，让 Node 用户注入 zlib.inflateSync
  */
 import { unzlibSync } from 'fflate'
-import { FbxError } from './util'
+import { FbxError } from '../util'
 
 /** 调试用 recorder：非 undefined 时会记录每次 inflate 的 input/output，供 scripts/verify-inflate.ts 对比。 */
 export let inflateRecorder: Array<{ input: Uint8Array; output: Uint8Array }> | undefined

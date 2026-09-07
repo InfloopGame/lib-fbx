@@ -10,4 +10,4 @@
 pnpm viewer
 ```
 
-打开 http://127.0.0.1:4173 ，拖入 `.fbx`，或点「加载 MuscleMan fixture」。
+打开 http://127.0.0.1:4173 ，选择或拖入 `.fbx`。

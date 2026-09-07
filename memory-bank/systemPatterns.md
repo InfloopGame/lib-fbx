@@ -1,6 +1,7 @@
 # System Patterns
 
 - 入口：`src/index.ts` 再导出 detect / parse / `buildScene` / FbxError / version，以及 `src/sdk/` 的 FBX SDK 风格场景类型。
+- 解析实现收在 `src/parse/`：`index.ts`（`parse()`）/ `detect.ts` / `binary-parser.ts` / `binary-reader.ts` / `text-parser.ts` / `inflate.ts` / `normalize-fbx6.ts`。
 - 两层数据：parse tree（`src/types.ts`，`FbxParseResult` / `FbxTreeNode` / `FbxTreeProperty`）与 SDK 对象图（`src/sdk/`，`FbxScene` / `FbxNode` / `FbxProperty<T>`）。`buildScene` 负责 tree → Scene。
 - 小支撑收在 `src/util.ts`：`toBytes` / `toArrayBuffer` / `FbxError` / `FbxTree` / `version`。
 - 错误用 `FbxError` + `code`（`EMPTY_INPUT` | `UNKNOWN_FORMAT` | `UNSUPPORTED_VERSION` | `INVALID_DATA`）。

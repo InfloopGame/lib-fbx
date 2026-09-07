@@ -1,7 +1,7 @@
 /**
  * FBX ASCII 格式解析器
  */
-import { FbxTree } from './util'
+import { FbxTree } from '../util'
 
 export class TextParser {
   private currentIndent = 0

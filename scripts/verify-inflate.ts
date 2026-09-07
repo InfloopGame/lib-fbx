@@ -1,6 +1,6 @@
 /**
  * inflate 验证：跑一次 TS `parse()` 记录所有 zlib payload，然后对每个 payload
- * 用 src/inflate.ts（fflate）与 node:zlib.inflateSync 对比。
+ * 用 src/parse/inflate.ts（fflate）与 node:zlib.inflateSync 对比。
  *
  * 用法:
  *   pnpm tsx scripts/verify-inflate.ts <file.fbx>
@@ -8,7 +8,7 @@
 import { readFile } from 'node:fs/promises'
 import { inflateSync } from 'node:zlib'
 import { createHash } from 'node:crypto'
-import { setInflateRecorder } from '../src/inflate'
+import { setInflateRecorder } from '../src/parse/inflate'
 import { parse } from '../src/parse'
 
 function hash(bytes: Uint8Array): string {
@@ -77,7 +77,7 @@ async function main() {
   console.log('═'.repeat(80))
   console.log(`总数:                     ${records.length}`)
   console.log(`一致:                     ${allEqual}`)
-  console.log(`不同:                     ${differs}    ← 若非 0，src/inflate.ts 有 bug`)
+  console.log(`不同:                     ${differs}    ← 若非 0，src/parse/inflate.ts 有 bug`)
 
   if (samples.length > 0) {
     console.log('\n差异样本（前 5）:')

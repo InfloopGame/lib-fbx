@@ -2,7 +2,7 @@
  * 从 Autodesk SDK dump JSON 生成测试用 gold。
  * 跳过轴转换结果：localTransform、cluster.Transform、typed.axisSystem。
  *
- *   pnpm exec tsx tools/fbx-dump/generate-gold.mts [dump.json] [out.json]
+ *   pnpm exec tsx tools/fbx-dump/generate-gold.mts <dump.json> <out.json>
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -75,8 +75,14 @@ function basename(p: string): string {
   return p.replace(/\\/g, '/').split('/').pop() ?? p
 }
 
-const dumpPath = resolve(process.argv[2] ?? 'tools/fbx-dump/20269546453281.sdk.json')
-const outPath = resolve(process.argv[3] ?? 'tests/fixtures/20269546453281.sdk-gold.json')
+const dumpArg = process.argv[2]
+const outArg = process.argv[3]
+if (!dumpArg || !outArg) {
+  console.error('usage: tsx tools/fbx-dump/generate-gold.mts <dump.json> <out.json>')
+  process.exit(1)
+}
+const dumpPath = resolve(dumpArg)
+const outPath = resolve(outArg)
 
 const dump = JSON.parse(readFileSync(dumpPath, 'utf8')) as {
   sdkVersion?: string

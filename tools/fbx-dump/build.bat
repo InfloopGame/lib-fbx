@@ -2,9 +2,16 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-set "FBX_SDK_ROOT=D:\Tools\FBX SDK\2020.2.1"
+if not defined FBX_SDK_ROOT if defined FBXSDK_ROOT set "FBX_SDK_ROOT=%FBXSDK_ROOT%"
+if not defined FBX_SDK_ROOT (
+  echo FBX_SDK_ROOT is not set.
+  echo Set it to the Autodesk FBX SDK install root, e.g.:
+  echo   set FBX_SDK_ROOT=D:\Tools\FBX SDK\2020.2.1
+  exit /b 1
+)
 if not exist "%FBX_SDK_ROOT%\include\fbxsdk.h" (
   echo FBX SDK not found: %FBX_SDK_ROOT%
+  echo Expected include\fbxsdk.h under FBX_SDK_ROOT.
   exit /b 1
 )
 

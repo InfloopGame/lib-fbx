@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectFormat, getFbxVersion } from '../src/detect'
+import { detectFormat, getFbxVersion } from '../src/parse/detect'
 import { FbxError } from '../src/util'
 
 const BINARY_MAGIC = 'Kaydara FBX Binary  \0'

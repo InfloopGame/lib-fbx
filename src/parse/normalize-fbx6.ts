@@ -2,7 +2,7 @@
  * 将 FBX 6.x 节点树规范化为 7.x 结构
  * 6.x 中几何数据内嵌在 Model 节点内，需要拆分为独立 Geometry 节点
  */
-import type { FbxTree } from './util'
+import type { FbxTree } from '../util'
 
 type AnyRecord = Record<string, unknown>
 

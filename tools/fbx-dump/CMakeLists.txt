@@ -4,7 +4,28 @@ project(fbx-dump LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(FBX_SDK_ROOT "D:/Tools/FBX SDK/2020.2.1" CACHE PATH "Autodesk FBX SDK 2020.2.1 root")
+if(NOT FBX_SDK_ROOT)
+  if(DEFINED ENV{FBX_SDK_ROOT} AND NOT "$ENV{FBX_SDK_ROOT}" STREQUAL "")
+    set(FBX_SDK_ROOT "$ENV{FBX_SDK_ROOT}")
+  elseif(DEFINED ENV{FBXSDK_ROOT} AND NOT "$ENV{FBXSDK_ROOT}" STREQUAL "")
+    set(FBX_SDK_ROOT "$ENV{FBXSDK_ROOT}")
+  endif()
+endif()
+
+if(NOT FBX_SDK_ROOT)
+  message(FATAL_ERROR
+    "FBX SDK not located. Set FBX_SDK_ROOT (or FBXSDK_ROOT), "
+    "or pass -DFBX_SDK_ROOT=<path>.")
+endif()
+
+file(TO_CMAKE_PATH "${FBX_SDK_ROOT}" FBX_SDK_ROOT)
+set(FBX_SDK_ROOT "${FBX_SDK_ROOT}" CACHE PATH "Autodesk FBX SDK root")
+
+if(NOT EXISTS "${FBX_SDK_ROOT}/include/fbxsdk.h")
+  message(FATAL_ERROR
+    "FBX SDK not found at '${FBX_SDK_ROOT}' (missing include/fbxsdk.h).")
+endif()
+
 set(FBX_LIB_DIR "${FBX_SDK_ROOT}/lib/vs2019/x64/release")
 
 add_executable(fbx-dump src/main.cpp)

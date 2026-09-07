@@ -1,5 +1,5 @@
-import type { FbxFormat, FbxInput } from './types'
-import { FbxError, toBytes } from './util'
+import type { FbxFormat, FbxInput } from '../types'
+import { FbxError, toBytes } from '../util'
 
 /** Binary FBX 文件头前 21 字节：`Kaydara FBX Binary  \0` */
 export const BINARY_MAGIC = 'Kaydara FBX Binary  \0'

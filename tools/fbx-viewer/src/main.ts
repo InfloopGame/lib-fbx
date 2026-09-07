@@ -18,7 +18,6 @@ import { fbxSceneToThree, type ConvertResult } from './fbx-to-three'
 const canvasHost = document.body
 const stat = document.querySelector('#stat') as HTMLPreElement
 const fileInput = document.querySelector('#file') as HTMLInputElement
-const fixtureBtn = document.querySelector('#fixture') as HTMLButtonElement
 const wireBox = document.querySelector('#wire') as HTMLInputElement
 const skelBox = document.querySelector('#skel') as HTMLInputElement
 const gridBox = document.querySelector('#grid') as HTMLInputElement
@@ -131,16 +130,6 @@ fileInput.addEventListener('change', async () => {
   const file = fileInput.files?.[0]
   if (!file) return
   await loadBytes(await file.arrayBuffer(), file.name)
-})
-
-fixtureBtn.addEventListener('click', async () => {
-  const name = '20269546453281.fbx'
-  const res = await fetch(`/${name}`)
-  if (!res.ok) {
-    stat.textContent = `无法加载 fixture ${name}`
-    return
-  }
-  await loadBytes(await res.arrayBuffer(), name)
 })
 
 for (const el of [wireBox, skelBox, gridBox]) el.addEventListener('change', applyToggles)

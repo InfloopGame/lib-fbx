@@ -10,8 +10,8 @@
 
 ## FBX SDK dump 工具
 
-- 源码：`tools/fbx-dump/`，静态链接 `D:/Tools/FBX SDK/2020.2.1` 的 vs2019 x64 release `/MD` 库。
-- 编译：`tools/fbx-dump/build.bat`，或 CMake `Visual Studio 17 2022` + `cmake --build build --config Release`。
+- 源码：`tools/fbx-dump/`，静态链接 Autodesk FBX SDK 的 vs2019 x64 release `/MD` 库。SDK 根目录由环境变量 `FBX_SDK_ROOT`（或 `FBXSDK_ROOT`）定位，也可传 `-DFBX_SDK_ROOT=<path>`。
+- 编译：先 `set FBX_SDK_ROOT=...`，再跑 `tools/fbx-dump/build.bat`，或 CMake `Visual Studio 17 2022` + `cmake --build build --config Release`。
 - 产物：`tools/fbx-dump/fbx-dump.exe`（gitignore）。JSON 含 objects / properties / connections / typed（Mesh/Skin/AnimCurve 等）。
 
 ## Three.js 查看器

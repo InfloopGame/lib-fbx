@@ -4,8 +4,8 @@
  */
 import { BinaryReader } from './binary-reader'
 import { inflate } from './inflate'
-import type { FbxProperty } from './types'
-import { FbxError, FbxTree } from './util'
+import type { FbxProperty } from '../types'
+import { FbxError, FbxTree } from '../util'
 
 /** 剥离 attrName 里的 `TypeName::` 前缀，与 ASCII TextParser 行为对齐。 */
 function stripTypePrefix(value: FbxProperty | undefined): FbxProperty | '' {

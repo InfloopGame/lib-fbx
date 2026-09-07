@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BinaryReader } from '../src/binary-reader'
-import { inflate, setInflateRecorder } from '../src/inflate'
+import { BinaryReader } from '../src/parse/binary-reader'
+import { inflate, setInflateRecorder } from '../src/parse/inflate'
 import { FbxError } from '../src/util'
 import { deflateSync } from 'node:zlib'
 

@@ -793,7 +793,7 @@ function buildGlobalSettings(raw: Raw | undefined): FbxGlobalSettings {
     ...makeBase(-2, 'GlobalSettings', 'FbxGlobalSettings'),
     classId: 'FbxGlobalSettings',
     axisSystem: {
-      upVector: clamp(upAxis + 1, 1, 3) as FbxAxisUpVector,
+      upVector: Math.min(3, Math.max(1, upAxis + 1)) as FbxAxisUpVector,
       upSign,
       frontVector: frontParity(upAxis, frontAxis),
       frontSign,
@@ -1087,8 +1087,4 @@ function str(v: unknown): string | undefined {
 
 function normalizeName(s: string): string {
   return s.replace(/^"+|"+$/g, '').trim().replace(/ /g, '_')
-}
-
-function clamp(n: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, n))
 }

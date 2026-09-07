@@ -4,7 +4,7 @@
 
 已加入与 FBX SDK 2020.2.1 对齐的 TypeScript 场景对象层（`src/sdk/`）。parse 结果从 `FbxDocument` 改名为 `FbxParseResult`，把 `FbxDocument` / `FbxScene` / `FbxNode` 留给 SDK 类型。`buildScene(tree | FbxParseResult)` 把 parse tree 组装成 `FbxScene`。
 
-当前对齐目标是 **Importer 只读对象图**（不做 EvaluateLocal/GlobalTransform、不做动画采样）。先把 `tests/fixtures/20269546453281.fbx` 对到 `fbx-dump` 金标准：节点层级 / TRS / Mesh+Skin+Cluster（TransformLink）/ 材质 diffuse / DisplayLayer 成员 / 贴图路径 / 轴系。`GetUniqueID()` 是 SDK 运行时 ID，对照靠 classId + 名字 + 拓扑。Cluster.Transform 因轴转换与 SDK 不一致，金标准只对 TransformLink。SDK 注入的 `FbxAnimEvalClassic` / `FbxDocumentInfo` 不造。
+当前对齐目标是 **Importer 只读对象图**（不做 EvaluateLocal/GlobalTransform、不做动画采样）。对照靠 classId + 名字 + 拓扑。Cluster.Transform 因轴转换与 SDK 不一致，金标准只对 TransformLink。SDK 注入的 `FbxAnimEvalClassic` / `FbxDocumentInfo` 不造。
 
 官方 SDK 对照工具：`tools/fbx-dump/` 用 Autodesk FBX SDK 2020.2.1 把 scene 完整导出为 JSON（对象/属性/连接/网格/蒙皮/动画）。用法：`tools/fbx-dump/fbx-dump.exe scene.fbx [-o out.json]`。`GetUniqueID()` 是 SDK 运行时 ID，与文件 Objects 里的 UniqueId 不同；对照本库应靠 classId + name + 连接拓扑 + 几何/曲线数据。
 
@@ -12,7 +12,7 @@
 
 **TS 侧数字数组**：
 
-`src/binary-reader.ts` 与 `src/text-parser.ts` **所有 int32/int64/float32/float64 数组统一返回 `Float64Array`**。3-tuple（`Lcl_Translation.value` 等）保留 `number[]`，boolean 数组保留 `boolean[]`，byte blob 仍是 `ArrayBuffer`。
+`src/parse/binary-reader.ts` 与 `src/parse/text-parser.ts` **所有 int32/int64/float32/float64 数组统一返回 `Float64Array`**。3-tuple（`Lcl_Translation.value` 等）保留 `number[]`，boolean 数组保留 `boolean[]`，byte blob 仍是 `ArrayBuffer`。
 
 - Binary：`slice(start, end) → new TypedArray(buf) → new Float64Array(view)` 快路径，`slice` 一次 memcpy 保证对齐，`new Float64Array(typedArray)` 是 V8 内建 fast path。BE 或非 LE host 走 fallback 逐元素读。
 - Int64：用 `Uint32Array` 视图批量读 low/high pair 后手写位运算（`>>> 0` uint32），比逐 `getUint32` 少 offset ++ 与边界检查。
@@ -24,7 +24,7 @@
 
 **手写 inflate → fflate**：
 
-`src/inflate.ts` 从 190 行 pure-JS DEFLATE 换成 `fflate.unzlibSync`。收益：
+`src/parse/inflate.ts` 从 190 行 pure-JS DEFLATE 换成 `fflate.unzlibSync`。收益：
 - 17.3 MB 动画：TS 从 1515ms → 817ms（**1.85x**，吞吐 11.4→21.7 MB/s）
 - 覆盖率从 65% → 100%
 - fflate 4KB gzipped 依赖成本
@@ -38,7 +38,7 @@
 
 **`getInt64` 大负值 bug**（已修）：
 
-`src/binary-reader.ts` 的 `getInt64` 对大负 i64 曾静默错读：
+`src/parse/binary-reader.ts` 的 `getInt64` 对大负 i64 曾静默错读：
 - 触发条件：`-2^32 < value < -2^31`（如 `-2309307900`，常见于 KeyTime 负 tick）
 - 原因：JS 位运算 `& 0xffffffff` 返回 signed int32；`~lo & 0xffffffff` 结果高位 set 时是负数，后续 `-(hi * 2^32 + lo)` 里 `lo` 若为负会翻转符号（差恰好 2^32）
 - 修复：位运算结果统一 `>>> 0` 强制转 uint32
@@ -47,10 +47,12 @@
 顺带修复了几个原有缺陷：
 - `tests/helpers/binary-fbx.ts` 里 `footerBytes` 默认改为 176，匹配 `BinaryParser.endOfContent` 阈值，避免末尾节点被截断。
 - `BinaryParser` 现在也会剥离 `attrName` 的 `TypeName::` 前缀，行为对齐 ASCII `TextParser`。
-- 覆盖率门槛暂降为 lines/statements 85、branches 70（原为 100），待补齐 `inflate` / `binary-reader` / `text-parser` 分支测试后回到 100。
+- 覆盖率门槛暂降为 lines/statements 85、branches 70、functions 99（原为 100），待补齐 `inflate` / `binary-reader` / `text-parser` 分支测试后回到 100。
 
-角色 fixture `20269546453281.fbx` 已对 Autodesk SDK dump 做全量 `buildScene` 对照（`tests/sdk-gold-character.test.ts` + 约 14MB gold）。`buildScene` 现解析 SkinningType=Blend、CollectionExclusive→DisplayLayer、材质 DiffuseColor OP、Video `Filename`。故意不对齐：SDK 导入后的轴转换矩阵（localTransform / Cluster.Transform / GetAxisSystem）。
+`buildScene` 解析 SkinningType=Blend、CollectionExclusive→DisplayLayer、材质 DiffuseColor OP、Video `Filename`。故意不对齐：SDK 导入后的轴转换矩阵（localTransform / Cluster.Transform / GetAxisSystem）。角色全量 gold 因仓库未收录对应 FBX fixture 已撤。
 
-`tools/fbx-viewer` 用 `parse`/`buildScene` 把 FBX 转成 Three.js 场景（`pnpm viewer`）。蒙皮绑定用 TransformLink 逆矩阵；节点 Lcl 用 FBX 外旋对应的 three 内旋（缺省 `ZYX`）和完整 `generateTransform`，角色骨骼场景姿势与 Nail 对齐（Head ≈ `(72.5, -59.7, 177.9)`）。
+`tools/fbx-viewer` 用 `parse`/`buildScene` 把 FBX 转成 Three.js 场景（`pnpm viewer`）。蒙皮绑定用 TransformLink 逆矩阵；节点 Lcl 用 FBX 外旋对应的 three 内旋（缺省 `ZYX`）和完整 `generateTransform`。
+
+解析实现已收到 `src/parse/`（`parse()` / detect / binary+ascii parser / inflate / FBX6 normalize）。`src/types.ts`、`src/util.ts`、`src/sdk/` 仍在 `src/` 根下。
 
 下一步：铺其它 fixture 的 dump 金标准；完善 ASCII/binary 解析边界测试，抬升覆盖率。

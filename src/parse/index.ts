@@ -1,9 +1,9 @@
 import { BinaryParser } from './binary-parser'
 import { detectFormat, getFbxVersion } from './detect'
-import { FbxError, toArrayBuffer, toBytes } from './util'
+import { FbxError, toArrayBuffer, toBytes } from '../util'
 import { normalizeFbx6Tree } from './normalize-fbx6'
 import { TextParser } from './text-parser'
-import type { FbxInput, FbxParseResult, FbxTreeData } from './types'
+import type { FbxInput, FbxParseResult, FbxTreeData } from '../types'
 
 export function parse(input: FbxInput): FbxParseResult {
   const format = detectFormat(input)
@@ -26,3 +26,10 @@ export function parse(input: FbxInput): FbxParseResult {
   if (version < 7000) normalizeFbx6Tree(tree)
   return { format, version, tree: tree as unknown as FbxTreeData }
 }
+
+export { BinaryParser } from './binary-parser'
+export { BinaryReader } from './binary-reader'
+export { detectFormat, getFbxVersion } from './detect'
+export { inflate } from './inflate'
+export { normalizeFbx6Tree } from './normalize-fbx6'
+export { TextParser } from './text-parser'
