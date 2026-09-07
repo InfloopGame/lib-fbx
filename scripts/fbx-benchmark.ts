@@ -1,5 +1,5 @@
 /**
- * 递归扫描目录下的 .fbx，统计 `parse()` 加载速度。
+ * 递归扫描目录下的 .fbx，统计 `parse()` 与 `buildScene()` 耗时。
  *
  * 用法:
  *   pnpm bench
@@ -11,14 +11,16 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { parse } from '../src/parse'
-import type { FbxFormat } from '../src/types'
+import { buildScene } from '../src/sdk/build-scene'
+import type { FbxParseResult, FbxFormat } from '../src/types'
 
 interface BenchResult {
   file: string
   size: number
   format?: FbxFormat
   version?: number
-  timeMs: number
+  parseMs: number
+  sdkMs: number
   error?: string
 }
 
@@ -88,18 +90,25 @@ function median(values: number[]): number {
 async function timeParse(
   buffer: Buffer,
   iterations: number,
-): Promise<{ timeMs: number; format: FbxFormat; version: number }> {
+): Promise<{ timeMs: number; doc: FbxParseResult }> {
   const runs: number[] = []
-  let format: FbxFormat = 'binary'
-  let version = 0
+  let doc!: FbxParseResult
   for (let i = 0; i < iterations; i++) {
     const start = performance.now()
-    const parsed = parse(buffer)
+    doc = parse(buffer)
     runs.push(performance.now() - start)
-    format = parsed.format
-    version = parsed.version
   }
-  return { timeMs: median(runs), format, version }
+  return { timeMs: median(runs), doc }
+}
+
+function timeBuildScene(doc: FbxParseResult, iterations: number): number {
+  const runs: number[] = []
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now()
+    buildScene(doc)
+    runs.push(performance.now() - start)
+  }
+  return median(runs)
 }
 
 async function benchmark(opts: CliOptions): Promise<number> {
@@ -114,8 +123,8 @@ async function benchmark(opts: CliOptions): Promise<number> {
 
   console.log(`找到 ${files.length} 个 FBX 文件\n`)
 
-  const widths = [46, 10, 8, 6, 12, 16]
-  const header = ['文件', '大小', '格式', '版本', 'parse(ms)', '状态']
+  const widths = [42, 10, 8, 6, 12, 12, 12, 8]
+  const header = ['文件', '大小', '格式', '版本', 'parse(ms)', 'sdk(ms)', '合计(ms)', '状态']
   const sepLen = widths.reduce((s, w) => s + w, 0)
   console.log('─'.repeat(sepLen))
   printRow(header, widths)
@@ -127,26 +136,34 @@ async function benchmark(opts: CliOptions): Promise<number> {
     const fileInfo = await stat(filePath)
     const buffer = await readFile(filePath)
     const rel = relative(root, filePath) || filePath
-    const result: BenchResult = { file: rel, size: fileInfo.size, timeMs: 0 }
+    const result: BenchResult = { file: rel, size: fileInfo.size, parseMs: 0, sdkMs: 0 }
 
     try {
-      const { timeMs, format, version } = await timeParse(buffer, opts.iterations)
-      result.timeMs = timeMs
-      result.format = format
-      result.version = version
+      const { timeMs, doc } = await timeParse(buffer, opts.iterations)
+      result.parseMs = timeMs
+      result.format = doc.format
+      result.version = doc.version
+      try {
+        result.sdkMs = timeBuildScene(doc, opts.iterations)
+      } catch (error) {
+        result.error = `sdk: ${error instanceof Error ? error.message : String(error)}`
+      }
     } catch (error) {
-      result.error = error instanceof Error ? error.message : String(error)
+      result.error = `parse: ${error instanceof Error ? error.message : String(error)}`
     }
 
     results.push(result)
 
+    const totalMs = result.parseMs + result.sdkMs
     printRow(
       [
-        result.file.slice(0, 44),
+        result.file.slice(0, 40),
         formatSize(result.size),
         result.format ?? '-',
         result.version?.toString() ?? '-',
-        result.error ? 'fail' : result.timeMs.toFixed(2),
+        result.error?.startsWith('parse:') ? 'fail' : result.parseMs.toFixed(2),
+        result.error?.startsWith('parse:') ? '-' : result.error ? 'fail' : result.sdkMs.toFixed(2),
+        result.error ? 'fail' : totalMs.toFixed(2),
         result.error ? 'fail' : 'ok',
       ],
       widths,
@@ -166,11 +183,24 @@ async function benchmark(opts: CliOptions): Promise<number> {
   return failed.length
 }
 
+function printPhaseStats(label: string, times: number[], sizeBytes: number): void {
+  const total = times.reduce((s, t) => s + t, 0)
+  const sorted = [...times].sort((a, b) => a - b)
+  console.log(`${label}`)
+  console.log(`  总耗时:   ${total.toFixed(2)} ms`)
+  console.log(`  平均:     ${(total / times.length).toFixed(2)} ms`)
+  console.log(`  最快:     ${(sorted[0] ?? 0).toFixed(2)} ms`)
+  console.log(`  最慢:     ${(sorted[sorted.length - 1] ?? 0).toFixed(2)} ms`)
+  console.log(`  中位数:   ${median(sorted).toFixed(2)} ms`)
+  if (total > 0) {
+    console.log(`  吞吐量:   ${formatSize(sizeBytes / (total / 1000))}/s`)
+  }
+}
+
 function printSummary(results: BenchResult[]): void {
   const totalSize = results.reduce((s, r) => s + r.size, 0)
   const successes = results.filter((r) => !r.error)
   const failures = results.filter((r) => r.error)
-  const totalTime = successes.reduce((s, r) => s + r.timeMs, 0)
 
   console.log('\n' + '═'.repeat(80))
   console.log('汇总')
@@ -179,17 +209,15 @@ function printSummary(results: BenchResult[]): void {
   console.log(`总大小:     ${formatSize(totalSize)}`)
   console.log(`成功:       ${successes.length}`)
   console.log(`失败:       ${failures.length}`)
-  console.log(`总耗时:     ${totalTime.toFixed(2)} ms`)
   if (successes.length > 0) {
-    const times = successes.map((r) => r.timeMs).sort((a, b) => a - b)
-    console.log(`平均耗时:   ${(totalTime / successes.length).toFixed(2)} ms`)
-    console.log(`最快:       ${(times[0] ?? 0).toFixed(2)} ms`)
-    console.log(`最慢:       ${(times[times.length - 1] ?? 0).toFixed(2)} ms`)
-    console.log(`中位数:     ${median(times).toFixed(2)} ms`)
-    if (totalTime > 0) {
-      const sizeSucceeded = successes.reduce((s, r) => s + r.size, 0)
-      console.log(`吞吐量:     ${formatSize(sizeSucceeded / (totalTime / 1000))}/s`)
-    }
+    const sizeSucceeded = successes.reduce((s, r) => s + r.size, 0)
+    printPhaseStats('parse()', successes.map((r) => r.parseMs), sizeSucceeded)
+    printPhaseStats('buildScene()', successes.map((r) => r.sdkMs), sizeSucceeded)
+    printPhaseStats(
+      'parse+sdk',
+      successes.map((r) => r.parseMs + r.sdkMs),
+      sizeSucceeded,
+    )
   }
 }
 
@@ -233,6 +261,7 @@ function printHelp(): void {
   console.log('  -h, --help             显示帮助')
   console.log('')
   console.log('未传路径时默认扫描 tests/fixtures')
+  console.log('每文件分别计时 parse() 与 buildScene()（SDK 对象图），取中位数')
 }
 
 try {

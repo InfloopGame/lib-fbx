@@ -2,6 +2,7 @@ import './style.css'
 import {
   AmbientLight,
   Box3,
+  BoxHelper,
   Color,
   DirectionalLight,
   GridHelper,
@@ -12,8 +13,9 @@ import {
   WebGLRenderer,
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { buildScene, parse } from '@infloopgame/lib-fbx'
+import { buildScene, parse, FbxAxisUpVector, type FbxNode } from '@infloopgame/lib-fbx'
 import { fbxSceneToThree, type ConvertResult } from './fbx-to-three'
+import { mountSceneTree } from './scene-tree'
 
 const canvasHost = document.body
 const stat = document.querySelector('#stat') as HTMLPreElement
@@ -21,6 +23,7 @@ const fileInput = document.querySelector('#file') as HTMLInputElement
 const wireBox = document.querySelector('#wire') as HTMLInputElement
 const skelBox = document.querySelector('#skel') as HTMLInputElement
 const gridBox = document.querySelector('#grid') as HTMLInputElement
+const outliner = document.querySelector('#outliner') as HTMLElement
 
 const renderer = new WebGLRenderer({ antialias: true, alpha: false })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
@@ -45,6 +48,31 @@ scene.add(grid)
 
 let loaded: ConvertResult | null = null
 let helpers: SkeletonHelper[] = []
+let selectHelper: BoxHelper | null = null
+
+const tree = mountSceneTree(outliner, {
+  onSelect(node: FbxNode) {
+    highlightNode(node)
+  },
+})
+
+function clearSelectHelper(): void {
+  if (!selectHelper) return
+  scene.remove(selectHelper)
+  selectHelper.geometry.dispose()
+  const mat = selectHelper.material
+  if (Array.isArray(mat)) mat.forEach((m) => m.dispose())
+  else mat.dispose()
+  selectHelper = null
+}
+
+function highlightNode(node: FbxNode): void {
+  clearSelectHelper()
+  const obj = loaded?.nodeMap.get(node)
+  if (!obj) return
+  selectHelper = new BoxHelper(obj, 0x2d6cdf)
+  scene.add(selectHelper)
+}
 
 function fit(model: ConvertResult): void {
   const box = new Box3().setFromObject(model.root)
@@ -63,6 +91,8 @@ function fit(model: ConvertResult): void {
 }
 
 function clear(): void {
+  clearSelectHelper()
+  tree.render(null)
   if (loaded) {
     scene.remove(loaded.root)
     loaded.root.traverse((o) => {
@@ -109,19 +139,24 @@ async function loadBytes(buf: ArrayBuffer, label: string): Promise<void> {
     clear()
     loaded = fbxSceneToThree(fbx)
     scene.add(loaded.root)
+    tree.render(fbx.rootNode)
     showHelpers()
     applyToggles()
     fit(loaded)
     const t2 = performance.now()
     const s = loaded.stats
+    const up = fbx.globalSettings.axisSystem.upVector
+    const axis =
+      up === FbxAxisUpVector.eZAxis ? 'Z-up → Y-up' : up === FbxAxisUpVector.eXAxis ? 'X-up' : 'Y-up'
     stat.textContent = [
       label,
-      `${doc.format} ${doc.version}`,
+      `${doc.format} ${doc.version}  ${axis}`,
       `parse+build ${(t1 - t0).toFixed(0)} ms  toThree ${(t2 - t1).toFixed(0)} ms`,
       `nodes ${s.nodes}  mesh ${s.meshes}  tri ${s.triangles}`,
       `bones ${s.bones}  cluster ${s.clusters}  mat ${s.materials}`,
     ].join('\n')
   } catch (err) {
+    clear()
     stat.textContent = `失败: ${err instanceof Error ? err.message : String(err)}`
   }
 }
@@ -152,6 +187,7 @@ window.addEventListener('resize', () => {
 
 function tick(): void {
   controls.update()
+  selectHelper?.update()
   renderer.render(scene, camera)
   requestAnimationFrame(tick)
 }

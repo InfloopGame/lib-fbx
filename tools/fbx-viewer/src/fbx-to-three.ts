@@ -18,6 +18,7 @@ import {
 } from 'three'
 import type { FbxMesh, FbxNode, FbxScene, FbxSkin, FbxSurfaceLambert } from '@infloopgame/lib-fbx'
 import { FbxLayerElementMappingMode, FbxLayerElementReferenceMode } from '@infloopgame/lib-fbx'
+import { threeEulerForFbxYUp } from './axis-y-up'
 
 const DEG = Math.PI / 180
 
@@ -158,6 +159,7 @@ export type ConvertResult = {
   root: Group
   meshes: Array<Mesh | SkinnedMesh>
   bones: Bone[]
+  nodeMap: Map<FbxNode, Object3D>
   stats: {
     nodes: number
     meshes: number
@@ -519,10 +521,20 @@ export function fbxSceneToThree(scene: FbxScene): ConvertResult {
     delete mesh.userData.fbxSkinBind
   }
 
+  const yUp = threeEulerForFbxYUp(scene.globalSettings.axisSystem.upVector)
+  if (yUp) {
+    root.rotation.set(yUp[0], yUp[1], yUp[2])
+    root.updateMatrixWorld(true)
+  }
+
+  const nodeMap = new Map<FbxNode, Object3D>(attachments.map((a) => [a.node, a.obj]))
+  nodeMap.set(scene.rootNode, root)
+
   return {
     root,
     meshes,
     bones: [...bones.values()],
+    nodeMap,
     stats: {
       nodes: nodeCount,
       meshes: meshes.length,

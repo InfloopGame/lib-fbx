@@ -10,4 +10,4 @@
 pnpm viewer
 ```
 
-打开 http://127.0.0.1:4173 ，选择或拖入 `.fbx`。
+打开 http://127.0.0.1:4173 ，选择或拖入 `.fbx`。右侧层级树展示 `FbxScene` 节点；点击节点会用 BoxHelper 高亮，不移动相机。Z-up 文件会绕 X 转 -90° 转到 Three.js 的 Y-up（与 FBXLoader 相同）。

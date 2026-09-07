@@ -34,10 +34,15 @@ pnpm lint
 pnpm typecheck
 pnpm build
 pnpm ci            # lint + typecheck + coverage + build
-pnpm bench                            # 测 parse() 加载速度（tests/fixtures）
+pnpm bench                            # 测 parse() + buildScene()（tests/fixtures）
 pnpm bench -- D:/models               # 递归指定目录下所有 .fbx
 pnpm bench -- --iterations 5 D:/models # 每文件跑 N 次取中位数（默认 3）
 pnpm viewer                           # Three.js 查看器（本库 parse + buildScene 导入）
+
+# 官方 SDK 对照：先设 FBX_SDK_ROOT，再编译 tools/fbx-dump（见该目录 README）
+#   set FBX_SDK_ROOT=D:\Tools\FBX SDK\2020.2.1
+#   tools\fbx-dump\build.bat
+#   fbx-dump.exe scene.fbx [-o out.json]
 
 # inflate 对比（诊断压缩数据一致性问题时用：fflate vs node:zlib）
 pnpm tsx scripts/verify-inflate.ts path/to/file.fbx

@@ -10,12 +10,12 @@
 
 ## FBX SDK dump 工具
 
-- 源码：`tools/fbx-dump/`，静态链接 Autodesk FBX SDK 的 vs2019 x64 release `/MD` 库。SDK 根目录由环境变量 `FBX_SDK_ROOT`（或 `FBXSDK_ROOT`）定位，也可传 `-DFBX_SDK_ROOT=<path>`。
-- 编译：先 `set FBX_SDK_ROOT=...`，再跑 `tools/fbx-dump/build.bat`，或 CMake `Visual Studio 17 2022` + `cmake --build build --config Release`。
-- 产物：`tools/fbx-dump/fbx-dump.exe`（gitignore）。JSON 含 objects / properties / connections / typed（Mesh/Skin/AnimCurve 等）。
+- 源码与说明：`tools/fbx-dump/`（README）。静态链接 Autodesk FBX SDK vs2019 x64 release `/MD` 库。
+- SDK 根目录由 `FBX_SDK_ROOT`（或 `FBXSDK_ROOT`）定位，也可传 `-DFBX_SDK_ROOT=<path>`。
+- 编译：先设环境变量，再跑 `tools/fbx-dump/build.bat`。产物 `fbx-dump.exe` gitignore。JSON 含 objects / properties / connections / typed。
 
 ## Three.js 查看器
 
 - `tools/fbx-viewer/`，`pnpm viewer` → Vite `127.0.0.1:4173`（Windows 上 5173 常被 Hyper-V 排除）。
-- 别名直连 `src/index.ts`，用 `parse` + `buildScene`，不走 three `FBXLoader`。节点矩阵对齐 FBXLoader 的 `getEulerOrder` + `generateTransform`；蒙皮 `Inverse(TransformLink)`。
+- 别名直连 `src/index.ts`，用 `parse` + `buildScene`，不走 three `FBXLoader`。节点矩阵对齐 FBXLoader 的 `getEulerOrder` + `generateTransform`；蒙皮 `Inverse(TransformLink)`。右侧 Outliner 渲染 `FbxScene` 节点树，点击用 `nodeMap` 挂 BoxHelper 高亮。
 - 依赖：`three`、`vite`（根目录 devDependencies）。
