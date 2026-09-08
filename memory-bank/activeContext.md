@@ -1,6 +1,6 @@
 # Active Context
 
-包名已改为 `@infloopgame/lib-fbx`，准备发到 npm 组织 `infloopgame`。公共 API（detect/parse/error）、全覆盖测试、CI、OIDC 发布流水线已就绪。
+包名 `@infloopgame/lib-fbx`。公共 API（detect/parse/error）、测试、CI、OIDC 发布流水线已就绪。npm 已发 0.0.1；当前准备发 0.1.0（SDK 对象图、`buildScene`、解析收口 `src/parse/`、去掉 WASM）。
 
 已加入与 FBX SDK 2020.2.1 对齐的 TypeScript 场景对象层（`src/sdk/`）。parse 结果从 `FbxDocument` 改名为 `FbxParseResult`，把 `FbxDocument` / `FbxScene` / `FbxNode` 留给 SDK 类型。`buildScene(tree | FbxParseResult)` 把 parse tree 组装成 `FbxScene`。
 

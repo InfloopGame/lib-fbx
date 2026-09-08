@@ -1,6 +1,6 @@
 import type { FbxErrorCode, FbxInput } from './types'
 
-export const version = '0.0.1'
+export const version = '0.1.0'
 
 export class FbxError extends Error {
   readonly code: FbxErrorCode

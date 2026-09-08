@@ -22,4 +22,4 @@
 - FBX 几何 / 动画求值（AnimEvaluator / 局部变换）
 - 其它 fixture 的 dump 金标准铺开（仓库未收录大型角色 FBX）
 - 补齐 `inflate` / `binary-reader` / `text-parser` 分支覆盖，把覆盖率门槛抬回 100
-- 首次发布前需在 npmjs.com 为 `@infloopgame/lib-fbx` 配置 Trusted Publisher（允许 `npm publish`）
+- 0.0.1 已发布；下一次发版走 tag `v*` 触发 `publish.yml`
