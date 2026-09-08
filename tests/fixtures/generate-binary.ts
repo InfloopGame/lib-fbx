@@ -227,10 +227,46 @@ write(
 )
 
 write(
-  'binary-6000-unsupported.fbx',
+  'binary-6000.fbx',
   buildBinaryFbx({
     version: 6000,
-    nodes: [{ name: 'Empty', props: [{ kind: 'I', value: 1 }] }],
+    nodes: [
+      {
+        name: 'Objects',
+        children: [
+          {
+            name: 'Model',
+            props: [
+              { kind: 'L', value: 10 },
+              { kind: 'S', value: 'Model::Box' },
+              { kind: 'S', value: 'Mesh' },
+            ],
+            children: [
+              {
+                name: 'Vertices',
+                props: [{ kind: 'array', type: 'd', values: [0, 0, 0, 1, 0, 0] }],
+              },
+              {
+                name: 'Properties60',
+                children: [
+                  {
+                    name: 'Property',
+                    props: [
+                      { kind: 'S', value: 'Lcl Translation' },
+                      { kind: 'S', value: 'Lcl Translation' },
+                      { kind: 'S', value: 'A+' },
+                      { kind: 'D', value: 4 },
+                      { kind: 'D', value: 5 },
+                      { kind: 'D', value: 6 },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
   }),
 )
 

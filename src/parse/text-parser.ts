@@ -131,7 +131,7 @@ export class TextParser {
       return
     }
 
-    if (propName === 'C') {
+    if (propName === 'C' || propName === 'Connect') {
       const parts = (propValue as string).split(',')
       const from = parseInt(parts[1] ?? '', 10)
       const to = parseInt(parts[2] ?? '', 10)

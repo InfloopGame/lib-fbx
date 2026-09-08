@@ -15,6 +15,7 @@
 - `tools/fbx-viewer`：Three.js 查看器，`pnpm viewer`；蒙皮绑定对齐 TransformLink + `mesh.matrixWorld`；骨骼场景姿势对齐 FBX 欧拉外旋/`generateTransform`；右侧 Outliner 展示 SDK 场景图，点选只高亮不改相机
 - 已移除 Rust/WASM 可选后端（crate、`parseWasm`、CI `wasm-check`、内联产物）：固定开销与双实现成本高于收益，解析只保留 TS `parse()`
 - 解析实现收到 `src/parse/`（detect / binary / ascii / inflate / FBX6 normalize），公共 API 仍从包入口再导出
+- `parse()` 支持 FBX 6000（与 6100 同属 6.x：32 位偏移 + Properties60 + 内嵌几何 normalize）；ASCII `Connect:` 视为 `C:`；`< 6000` 仍拒绝
 
 未完成：
 

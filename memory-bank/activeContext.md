@@ -55,6 +55,10 @@
 
 解析实现已收到 `src/parse/`（`parse()` / detect / binary+ascii parser / inflate / FBX6 normalize）。`src/types.ts`、`src/util.ts`、`src/sdk/` 仍在 `src/` 根下。
 
+`parse()` 支持 FBX **6000–7xxx**：binary/ascii 下限从 6100 降到 6000；`< 7000` 仍走 `normalizeFbx6Tree`（内嵌几何拆出、Properties60）。ASCII 6.x 连接节点 `Connect:` 与 7.x 的 `C:` 等同。低于 6000 仍报 `UNSUPPORTED_VERSION`。
+
+`pnpm bench` 分别计时 `parse()` 与 `buildScene()`（SDK 对象图），每文件 N 次取中位数并汇总吞吐量。
+
 `pnpm bench` 分别计时 `parse()` 与 `buildScene()`（SDK 对象图），每文件 N 次取中位数并汇总吞吐量。
 
 下一步：铺其它 fixture 的 dump 金标准；完善 ASCII/binary 解析边界测试，抬升覆盖率。

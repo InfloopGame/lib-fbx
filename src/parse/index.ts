@@ -18,7 +18,7 @@ export function parse(input: FbxInput): FbxParseResult {
 
   const text = typeof input === 'string' ? input : new TextDecoder().decode(bytes)
   const version = getFbxVersion(text)
-  if (version < 6100) {
+  if (version < 6000) {
     throw new FbxError('UNSUPPORTED_VERSION', `FBX version not supported, FileVersion: ${version}`)
   }
 

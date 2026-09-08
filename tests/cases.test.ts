@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { detectFormat } from '../src/parse/detect'
-import { FbxError } from '../src/util'
 import { parse } from '../src/parse'
 import type { FbxParseResult, FbxTreeData } from '../src/types'
 import { loadFixture, loadFixtureText } from './helpers/load-fixture'
@@ -160,14 +159,15 @@ describe('fbx cases', () => {
     })
   })
 
-  describe('binary-6000-unsupported.fbx', () => {
-    it('rejects versions below 6100', () => {
-      expect(() => parse(loadFixture('binary-6000-unsupported.fbx'))).toThrow(FbxError)
-      try {
-        parse(loadFixture('binary-6000-unsupported.fbx'))
-      } catch (error) {
-        expect((error as FbxError).code).toBe('UNSUPPORTED_VERSION')
-      }
+  describe('binary-6000.fbx', () => {
+    it('parses FBX 6000 and applies 6.x normalize', () => {
+      const doc = parse(loadFixture('binary-6000.fbx'))
+      expect(doc.format).toBe('binary')
+      expect(doc.version).toBe(6000)
+      const objs = objects(doc)
+      expect(objs.Model?.[10]?.Vertices).toBeUndefined()
+      expect(Array.from((objs.Geometry?.[900000]?.Vertices as { a: Float64Array }).a)).toEqual([0, 0, 0, 1, 0, 0])
+      expect((objs.Model?.[10]?.Lcl_Translation as { value: number[] }).value).toEqual([4, 5, 6])
     })
   })
 

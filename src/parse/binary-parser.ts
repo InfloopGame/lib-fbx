@@ -22,7 +22,7 @@ export class BinaryParser {
 
     this.version = reader.getUint32()
 
-    if (this.version < 6100) {
+    if (this.version < 6000) {
       throw new FbxError(
         'UNSUPPORTED_VERSION',
         `FBX version not supported, FileVersion: ${this.version}`,
