@@ -22,4 +22,4 @@
 - FBX 几何 / 动画求值（AnimEvaluator / 局部变换）
 - 其它 fixture 的 dump 金标准铺开（仓库未收录大型角色 FBX）
 - 补齐 `inflate` / `binary-reader` / `text-parser` 分支覆盖，把覆盖率门槛抬回 100
-- 0.0.1 已在 npm；0.1.0 待 Trusted Publisher（只允许 stage）绑定后 `npm stage publish` + 2FA approve。私有仓库须 `provenance: false`。
+- 0.1.0 已在 npm；0.1.1 为使用向 README（含 Three.js 示例），待 stage + 2FA approve。

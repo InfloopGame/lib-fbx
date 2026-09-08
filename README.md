@@ -1,91 +1,145 @@
-# lib-fbx
+# @infloopgame/lib-fbx
 
-FBX 文件解析与处理库。
+解析 FBX（Binary / ASCII，6000–7xxx），并组装成与 Autodesk FBX SDK 2020.2.1 对齐的只读场景对象图。
+
+本包**不依赖 Three.js**。需要渲染时自行把 `FbxScene` 转成 `THREE.Object3D`（下面有示例）。不做动画求值（`AnimEvaluator` / 采样）。
 
 ## 安装
 
 ```bash
 pnpm add @infloopgame/lib-fbx
+# 若用 Three.js 渲染，另装：
+pnpm add three
 ```
 
-## 使用
+## 解析
+
+输入 `ArrayBuffer` / `Uint8Array` / `Buffer`：
 
 ```ts
 import { detectFormat, parse, buildScene } from '@infloopgame/lib-fbx'
 
-const format = detectFormat(fbxBuffer) // 'binary' | 'ascii'
-const doc = parse(fbxBuffer)
-const scene = buildScene(doc) // 或 buildScene(doc.tree)
+const format = detectFormat(fbxBytes) // 'binary' | 'ascii'
+const doc = parse(fbxBytes)           // FbxParseResult: { format, version, tree }
+const scene = buildScene(doc)         // 或 buildScene(doc.tree)
 ```
 
-`parse()` 返回 `FbxParseResult`：`{ format, version, tree }`（文件节点树）。`buildScene()` 把 tree 组装成 SDK 风格的 `FbxScene`（节点层级、几何、材质、动画、连接）。测试放在仓库根目录 `tests/`，不与 `src` 混放。
+浏览器：
 
-与 Autodesk FBX SDK 2020.2.1 对齐的场景对象类型在 `src/sdk/`（`FbxScene` / `FbxNode` / `FbxMesh` 等），由包入口再导出。`FbxDocument` 现在指 SDK 文档对象，不是 parse 结果。
-
-**数字数组类型**：从 v0.0.x 开始，binary 与 ASCII 两端解析出的 int32 / int64 / float32 / float64 数组（如 `Vertices.a` / `PolygonVertexIndex.a` / `KeyTime.a` / `Matrix.a`）**统一返回 `Float64Array`**。3-元素 tuple（如 `Lcl_Translation.value`）保留 `number[]`。Boolean 数组和字节 blob（`Content` 等）不变。下游若需要 `number[]`，用 `Array.from(v)` 转换即可。
-
-## 开发
-
-```bash
-pnpm install
-pnpm test          # 单元测试
-pnpm test:coverage # 覆盖率
-pnpm lint
-pnpm typecheck
-pnpm build
-pnpm ci            # lint + typecheck + coverage + build
-pnpm bench                            # 测 parse() + buildScene()（tests/fixtures）
-pnpm bench -- D:/models               # 递归指定目录下所有 .fbx
-pnpm bench -- --iterations 5 D:/models # 每文件跑 N 次取中位数（默认 3）
-pnpm viewer                           # Three.js 查看器（本库 parse + buildScene 导入）
-
-# 官方 SDK 对照：先设 FBX_SDK_ROOT，再编译 tools/fbx-dump（见该目录 README）
-#   set FBX_SDK_ROOT=D:\Tools\FBX SDK\2020.2.1
-#   tools\fbx-dump\build.bat
-#   fbx-dump.exe scene.fbx [-o out.json]
-
-# inflate 对比（诊断压缩数据一致性问题时用：fflate vs node:zlib）
-pnpm tsx scripts/verify-inflate.ts path/to/file.fbx
+```ts
+const bytes = new Uint8Array(await file.arrayBuffer())
+const scene = buildScene(parse(bytes))
 ```
 
-## CI / 发布
+- `parse()` 得到文件节点树（`FbxParseResult`）。`FbxDocument` / `FbxScene` / `FbxNode` 是 SDK 对象，不是 parse 结果。
+- `buildScene()` 把 tree 编成 `FbxScene`：节点层级、Mesh / Skin / 材质 / 动画曲线 / Pose / 轴系。
+- 几何数组（`Vertices.a`、`controlPoints`、`polygonIndexes`、`KeyTime.a` 等）是 **`Float64Array`**；`Lcl_Translation` 这类 3 元组仍是 `number[]`。需要 `number[]` 时用 `Array.from(v)`。
 
-- **CI**：push / PR 到 `main` 时，在 Node 20/22/24 上跑 lint、类型检查、覆盖率测试和构建。
-- **发布**：推送 `v*` tag（例如 `v0.1.0`）后，GitHub Actions 用 OIDC 跑 `npm stage publish`。维护者再用 2FA 批准上架。仓库是私有的，npm 不会生成 provenance。不使用 long-lived / bypass-2FA token（[npm GAT 策略](https://github.blog/changelog/2026-07-08-npm-install-time-security-and-gat-bypass2fa-deprecation/)）。
+常用字段：
 
-发布前：
-
-1. 把 `package.json` 的 `version` 改成目标版本（与 tag 去掉 `v` 后一致）。
-2. 在 [npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers) 绑定（须交互登录 + 2FA，不能用 bypass-2FA token）：
-   - npm 包名：`@infloopgame/lib-fbx`
-   - GitHub Organization：`InfloopGame`
-   - Repository：`lib-fbx`
-   - Workflow filename：`publish.yml`
-   - Allowed actions：勾选 **npm stage publish**（2026-09-03 之后新建配置的默认值；不要勾选 `npm publish`）
-
-   ```bash
-   npm login
-   npm trust github @infloopgame/lib-fbx \
-     --file publish.yml \
-     --repo InfloopGame/lib-fbx \
-     --allow-stage-publish \
-     -y
-   ```
-3. 推送 tag，等 Actions 把包送进 stage 队列：
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
+```ts
+scene.rootNode          // FbxNode 树
+scene.globalSettings.axisSystem.upVector
+scene.materials
+scene.animStacks        // 曲线在，未采样
 ```
 
-4. 维护者 2FA 批准（[staged publishing](https://docs.npmjs.com/staged-publishing)）：
+节点上：`children`、`nodeAttributes`（含 `FbxMesh`）、`lclTranslation` / `lclRotation` / `lclScaling`（度）、`materials`。网格：`controlPoints`（xyz 交错）、`polygonIndexes`（多边形末顶点为负：`~index`）。
 
-```bash
-npm stage list
-npm stage approve @infloopgame/lib-fbx@0.1.0
+## Three.js
+
+本库不导出 Loader。流程是 `parse` → `buildScene` → 遍历 `FbxNode` 建 `BufferGeometry`。
+
+下面是静态网格的最小接入（欧拉默认 `ZYX`，对齐多数 FBX）。蒙皮、pivot、inheritType 见文末注意。
+
+```ts
+import {
+  buildScene,
+  parse,
+  FbxAxisUpVector,
+  isFbxMesh,
+  type FbxMesh,
+  type FbxNode,
+} from '@infloopgame/lib-fbx'
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Euler,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
+  type Object3D,
+} from 'three'
+
+const DEG = Math.PI / 180
+
+function meshGeometry(mesh: FbxMesh): BufferGeometry {
+  const cps = mesh.controlPoints
+  const idx = mesh.polygonIndexes
+  const pos: number[] = []
+  const poly: number[] = []
+  const tri = (a: number, b: number, c: number) => {
+    for (const i of [a, b, c]) {
+      pos.push(cps[i * 3]!, cps[i * 3 + 1]!, cps[i * 3 + 2]!)
+    }
+  }
+  for (let i = 0; i < idx.length; i++) {
+    const v = idx[i]!
+    if (v >= 0) {
+      poly.push(v)
+      continue
+    }
+    poly.push(-v - 1)
+    for (let t = 1; t < poly.length - 1; t++) tri(poly[0]!, poly[t]!, poly[t + 1]!)
+    poly.length = 0
+  }
+  const geo = new BufferGeometry()
+  geo.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3))
+  geo.computeVertexNormals()
+  return geo
+}
+
+function addNode(node: FbxNode, parent: Object3D): void {
+  const obj = new Group()
+  obj.name = node.name
+  const t = node.lclTranslation?.value
+  const r = node.lclRotation?.value
+  const s = node.lclScaling?.value
+  if (t) obj.position.set(t[0], t[1], t[2])
+  if (r) {
+    obj.rotation.copy(new Euler(r[0] * DEG, r[1] * DEG, r[2] * DEG, 'ZYX'))
+  }
+  if (s) obj.scale.set(s[0], s[1], s[2])
+  parent.add(obj)
+
+  for (const attr of node.nodeAttributes) {
+    if (!isFbxMesh(attr)) continue
+    obj.add(new Mesh(meshGeometry(attr), new MeshStandardMaterial({ color: 0xcccccc })))
+  }
+  for (const child of node.children) addNode(child, obj)
+}
+
+export function fbxToThree(fbxBytes: Uint8Array): Group {
+  const fbx = buildScene(parse(fbxBytes))
+  const root = new Group()
+  addNode(fbx.rootNode, root)
+  // Three.js 是 Y-up；Z-up 文件绕 X -90°（与 FBXLoader 相同）
+  if (fbx.globalSettings.axisSystem.upVector === FbxAxisUpVector.eZAxis) {
+    root.rotation.x = -Math.PI / 2
+  }
+  return root
+}
+
+// const model = fbxToThree(bytes)
+// scene.add(model)
 ```
 
-也可在 npmjs.com 的 Staged Packages 里点 Approve。Actions 里手动跑 **Publish** 默认 dry-run，只打包不 stage。
+蒙皮与材质注意：
+
+- 绑定矩阵用 **`Inverse(Cluster.TransformLink)`**，再 `mesh.bind(skeleton, mesh.matrixWorld)`。不要用 `Cluster.Transform`（SDK 导入后的轴转换与文件不一致）。
+- 节点局部矩阵若要对齐 `FBXLoader`，需 `getEulerOrder`（FBX 外旋 → three 内旋）+ `generateTransform`（pivot / inheritType），不能只设 `position` / `rotation` / `scale`。
+- 贴图路径多为 DCC 绝对路径，浏览器里经常加载不到；可用材质 `Diffuse` 或顶点色兜底。
+- 本库不采样动画曲线，骨骼姿势是文件里的 Lcl，不是某一帧的求值结果。
 
 ## License
 
