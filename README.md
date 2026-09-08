@@ -51,7 +51,7 @@ pnpm tsx scripts/verify-inflate.ts path/to/file.fbx
 ## CI / 发布
 
 - **CI**：push / PR 到 `main` 时，在 Node 20/22/24 上跑 lint、类型检查、覆盖率测试和构建。
-- **发布**：推送 `v*` tag（例如 `v0.0.1`）后，GitHub Actions 用 npm Trusted Publishing（OIDC）发布，并附带 provenance。
+- **发布**：推送 `v*` tag（例如 `v0.1.0`）后，GitHub Actions 用 npm Trusted Publishing（OIDC）发布。仓库是私有的，npm 不会生成 provenance。
 
 发布前：
 
@@ -73,8 +73,8 @@ pnpm tsx scripts/verify-inflate.ts path/to/file.fbx
 3. 推送 tag：
 
 ```bash
-git tag v0.0.1
-git push origin v0.0.1
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
 也可在 Actions 里手动跑 **Publish**（默认 dry-run，只打包不发布）。

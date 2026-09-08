@@ -6,7 +6,7 @@
 - CI：GitHub Actions，矩阵 Node 20/22/24。
 - 包名：`@infloopgame/lib-fbx`（npm 组织 `infloopgame`）。
 - 锁文件必须对 `registry.npmjs.org` 解析。仓库根 `.npmrc` 固定官方源，避免 verdaccio / npmmirror 把 tarball URL 写进 `pnpm-lock.yaml`（CI 的供应链校验会失败）。
-- 发布：npm Trusted Publishing，workflow 文件名必须是 `publish.yml`；不要在 publish job 里设置空的 `registry-url` / `NODE_AUTH_TOKEN`，以免挡住 OIDC。新建 Trusted Publisher 须显式允许 `npm publish`。
+- 发布：npm Trusted Publishing，workflow 文件名必须是 `publish.yml`；不要在 publish job 里设置 `registry-url` / `NODE_AUTH_TOKEN`，以免空 `_authToken` 挡住 OIDC。新建 Trusted Publisher 须显式允许 `npm publish`。私有仓库须关掉 provenance（`publishConfig.provenance: false`）。
 
 ## FBX SDK dump 工具
 

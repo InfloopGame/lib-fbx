@@ -38,7 +38,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": false
   },
   "keywords": [
     "fbx",
@@ -48,7 +48,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/InfloopGame/lib-fbx.git"
+    "url": "https://github.com/InfloopGame/lib-fbx.git"
   },
   "bugs": {
     "url": "https://github.com/InfloopGame/lib-fbx/issues"

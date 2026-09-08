@@ -54,6 +54,10 @@ jobs:
       - name: Pack
         run: pnpm pack
 
+      # 私有仓库不能生成 provenance；不要给 setup-node 设 registry-url，
+      # 否则会写入空 _authToken，挡住 OIDC。
       - name: Publish to npm
         if: github.event_name == 'push' || inputs.dry_run == false
-        run: npm publish --access public --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: 'false'
+        run: npm publish --access public
