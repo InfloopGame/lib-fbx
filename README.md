@@ -51,33 +51,41 @@ pnpm tsx scripts/verify-inflate.ts path/to/file.fbx
 ## CI / 发布
 
 - **CI**：push / PR 到 `main` 时，在 Node 20/22/24 上跑 lint、类型检查、覆盖率测试和构建。
-- **发布**：推送 `v*` tag（例如 `v0.1.0`）后，GitHub Actions 用 npm Trusted Publishing（OIDC）发布。仓库是私有的，npm 不会生成 provenance。
+- **发布**：推送 `v*` tag（例如 `v0.1.0`）后，GitHub Actions 用 OIDC 跑 `npm stage publish`。维护者再用 2FA 批准上架。仓库是私有的，npm 不会生成 provenance。不使用 long-lived / bypass-2FA token（[npm GAT 策略](https://github.blog/changelog/2026-07-08-npm-install-time-security-and-gat-bypass2fa-deprecation/)）。
 
 发布前：
 
 1. 把 `package.json` 的 `version` 改成目标版本（与 tag 去掉 `v` 后一致）。
-2. 在 [npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers) 绑定（包还不存在时可用 CLI）：
+2. 在 [npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers) 绑定（须交互登录 + 2FA，不能用 bypass-2FA token）：
    - npm 包名：`@infloopgame/lib-fbx`
    - GitHub Organization：`InfloopGame`
    - Repository：`lib-fbx`
    - Workflow filename：`publish.yml`
-   - Allowed actions：勾选 **npm publish**（2026-09-03 之后新建配置默认只允许 stage）
+   - Allowed actions：勾选 **npm stage publish**（2026-09-03 之后新建配置的默认值；不要勾选 `npm publish`）
 
    ```bash
+   npm login
    npm trust github @infloopgame/lib-fbx \
      --file publish.yml \
      --repo InfloopGame/lib-fbx \
-     --allow-publish \
+     --allow-stage-publish \
      -y
    ```
-3. 推送 tag：
+3. 推送 tag，等 Actions 把包送进 stage 队列：
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-也可在 Actions 里手动跑 **Publish**（默认 dry-run，只打包不发布）。
+4. 维护者 2FA 批准（[staged publishing](https://docs.npmjs.com/staged-publishing)）：
+
+```bash
+npm stage list
+npm stage approve @infloopgame/lib-fbx@0.1.0
+```
+
+也可在 npmjs.com 的 Staged Packages 里点 Approve。Actions 里手动跑 **Publish** 默认 dry-run，只打包不 stage。
 
 ## License
 

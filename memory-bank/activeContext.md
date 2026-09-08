@@ -1,6 +1,6 @@
 # Active Context
 
-包名 `@infloopgame/lib-fbx`。公共 API（detect/parse/error）、测试、CI、OIDC 发布流水线已就绪。npm 已发 0.0.1。0.1.0 tag 已推，Publish 因未配置 Trusted Publisher 失败（ENEEDAUTH）。仓库私有，已关掉 provenance。
+包名 `@infloopgame/lib-fbx`。公共 API（detect/parse/error）、测试、CI、OIDC 发布流水线已就绪。npm 已发 0.0.1。0.1.0 改为 **stage publish**：CI `npm stage publish`，维护者 2FA 批准。Trusted Publisher 尚未绑定（上次 `npm publish` 报 ENEEDAUTH）。仓库私有，已关掉 provenance。
 
 已加入与 FBX SDK 2020.2.1 对齐的 TypeScript 场景对象层（`src/sdk/`）。parse 结果从 `FbxDocument` 改名为 `FbxParseResult`，把 `FbxDocument` / `FbxScene` / `FbxNode` 留给 SDK 类型。`buildScene(tree | FbxParseResult)` 把 parse tree 组装成 `FbxScene`。
 

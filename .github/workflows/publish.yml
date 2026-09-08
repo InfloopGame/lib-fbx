@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: '只打包，不发布到 npm'
+        description: '只打包，不提交 npm stage'
         type: boolean
         default: true
 
@@ -32,7 +32,7 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Use latest npm (OIDC trusted publishing needs >= 11.5.1)
+      - name: Use latest npm (OIDC + stage publish needs >= 11.15.0)
         run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
@@ -56,8 +56,9 @@ jobs:
 
       # 私有仓库不能生成 provenance；不要给 setup-node 设 registry-url，
       # 否则会写入空 _authToken，挡住 OIDC。
-      - name: Publish to npm
+      # bypass-2FA token 即将不能直发；CI 只 stage，维护者 2FA 批准后才上架。
+      - name: Stage publish to npm
         if: github.event_name == 'push' || inputs.dry_run == false
         env:
           NPM_CONFIG_PROVENANCE: 'false'
-        run: npm publish --access public
+        run: npm stage publish --access public
