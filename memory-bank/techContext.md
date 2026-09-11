@@ -17,5 +17,6 @@
 ## Three.js 查看器
 
 - `tools/fbx-viewer/`，`pnpm viewer` → Vite `127.0.0.1:4173`（Windows 上 5173 常被 Hyper-V 排除）。
-- 别名直连 `src/index.ts`，用 `parse` + `buildScene`，不走 three `FBXLoader`。节点矩阵对齐 FBXLoader 的 `getEulerOrder` + `generateTransform`；蒙皮 `Inverse(TransformLink)`。右侧 Outliner 渲染 `FbxScene` 节点树，点击用 `nodeMap` 挂 BoxHelper 高亮。
-- 依赖：`three`、`vite`（根目录 devDependencies）。
+- 别名直连 `src/index.ts`。两条转 Three 路径并对快照 diff：SDK（`buildScene` → `fbxSceneToThree`）与 parse（`fbxTreeToThree`，对照 FBXLoader 的 FBXTreeParser，不走 SDK）。
+- 节点矩阵对齐 FBXLoader 的 `getEulerOrder` + `generateTransform`；蒙皮 `Inverse(TransformLink)`。右侧 Outliner 渲染 `FbxScene` 节点树，点击用 `nodeMap` 挂 BoxHelper 高亮。
+- 依赖：`three`、`@types/three`、`vite`（根目录 devDependencies）。

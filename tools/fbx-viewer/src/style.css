@@ -76,6 +76,25 @@ button,
   white-space: pre-wrap;
 }
 
+#diff {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #e2c48a;
+  white-space: pre-wrap;
+}
+
+#diff.ok {
+  color: #8fd0c0;
+}
+
+.paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
 #outliner {
   position: fixed;
   z-index: 2;

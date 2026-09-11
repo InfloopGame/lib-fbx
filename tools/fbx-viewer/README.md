@@ -1,8 +1,13 @@
 # FBX Three.js viewer
 
-用本仓库 `parse` + `buildScene` 导入 FBX，转成 Three.js 场景查看。
+用本仓库 `parse` + 两条独立转 Three 路径查看 FBX：
 
-不走 three 自带的 `FBXLoader`。贴图路径多为 DCC 绝对路径，浏览器里加载不到，目前用漫反射色 / 顶点色。
+- **SDK**：`buildScene` → `fbxSceneToThree`
+- **parse**：对照 three.js `FBXLoader` 的 `FBXTreeParser`，直接 `tree → Three`（不走 `buildScene`）
+
+加载后会对两份 `Group` 做快照 diff（名字路径、世界矩阵、顶点数、包围盒、骨骼数）。HUD 可切换 SDK / parse / 对照（parse 洋红线框叠加）。
+
+贴图路径多为 DCC 绝对路径，浏览器里加载不到，目前用漫反射色 / 顶点色。
 
 蒙皮绑定对齐 three.js r184：先应用 Lcl，再 `boneInverse = Inverse(TransformLink)`，`bind(skeleton, mesh.matrixWorld)`，不用 Cluster.Transform。
 

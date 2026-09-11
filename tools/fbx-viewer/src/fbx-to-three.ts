@@ -4,132 +4,19 @@ import {
   BufferGeometry,
   Color,
   DoubleSide,
-  Euler,
   Group,
   Matrix4,
   Mesh,
   MeshPhongMaterial,
   Skeleton,
   SkinnedMesh,
-  Vector3,
-  type EulerOrder,
   type Material,
   type Object3D,
 } from 'three'
 import type { FbxMesh, FbxNode, FbxScene, FbxSkin, FbxSurfaceLambert } from '@infloopgame/lib-fbx'
 import { FbxLayerElementMappingMode, FbxLayerElementReferenceMode } from '@infloopgame/lib-fbx'
 import { threeEulerForFbxYUp } from './axis-y-up'
-
-const DEG = Math.PI / 180
-
-/** FBX 外旋 → three.js 内旋。见 three.js FBXLoader `getEulerOrder`. */
-function getEulerOrder(order: number): EulerOrder {
-  const enums: EulerOrder[] = ['ZYX', 'YZX', 'XZY', 'ZXY', 'YXZ', 'XYZ']
-  return enums[order] ?? 'ZYX'
-}
-
-type TransformData = {
-  translation?: [number, number, number]
-  rotation?: [number, number, number]
-  scale?: [number, number, number]
-  preRotation?: [number, number, number]
-  postRotation?: [number, number, number]
-  rotationOffset?: [number, number, number]
-  rotationPivot?: [number, number, number]
-  scalingOffset?: [number, number, number]
-  scalingPivot?: [number, number, number]
-  eulerOrder: EulerOrder
-  inheritType: number
-  parentMatrix: Matrix4
-  parentMatrixWorld: Matrix4
-}
-
-function maybeVec3(v: unknown): [number, number, number] | undefined {
-  if (v && typeof v === 'object' && 'length' in v && Number((v as ArrayLike<number>).length) >= 3) {
-    const a = v as ArrayLike<number>
-    return [Number(a[0]), Number(a[1]), Number(a[2])]
-  }
-  return undefined
-}
-
-function generateTransform(data: TransformData): Matrix4 {
-  const lTranslationM = new Matrix4()
-  const lPreRotationM = new Matrix4()
-  const lRotationM = new Matrix4()
-  const lPostRotationM = new Matrix4()
-  const lScalingM = new Matrix4()
-  const lScalingPivotM = new Matrix4()
-  const lScalingOffsetM = new Matrix4()
-  const lRotationOffsetM = new Matrix4()
-  const lRotationPivotM = new Matrix4()
-  const lParentGX = data.parentMatrixWorld.clone()
-  const lParentLX = data.parentMatrix.clone()
-  const tempVec = new Vector3()
-  const tempEuler = new Euler()
-  const defaultEulerOrder = getEulerOrder(0)
-
-  if (data.translation) lTranslationM.setPosition(tempVec.fromArray(data.translation))
-  if (data.preRotation) {
-    tempEuler.set(data.preRotation[0] * DEG, data.preRotation[1] * DEG, data.preRotation[2] * DEG, defaultEulerOrder)
-    lPreRotationM.makeRotationFromEuler(tempEuler)
-  }
-  if (data.rotation) {
-    tempEuler.set(data.rotation[0] * DEG, data.rotation[1] * DEG, data.rotation[2] * DEG, data.eulerOrder)
-    lRotationM.makeRotationFromEuler(tempEuler)
-  }
-  if (data.postRotation) {
-    tempEuler.set(data.postRotation[0] * DEG, data.postRotation[1] * DEG, data.postRotation[2] * DEG, defaultEulerOrder)
-    lPostRotationM.makeRotationFromEuler(tempEuler).invert()
-  }
-  if (data.scale) lScalingM.scale(tempVec.fromArray(data.scale))
-  if (data.scalingOffset) lScalingOffsetM.setPosition(tempVec.fromArray(data.scalingOffset))
-  if (data.scalingPivot) lScalingPivotM.setPosition(tempVec.fromArray(data.scalingPivot))
-  if (data.rotationOffset) lRotationOffsetM.setPosition(tempVec.fromArray(data.rotationOffset))
-  if (data.rotationPivot) lRotationPivotM.setPosition(tempVec.fromArray(data.rotationPivot))
-
-  const lLRM = lPreRotationM.clone().multiply(lRotationM).multiply(lPostRotationM)
-  const lParentGRM = new Matrix4().extractRotation(lParentGX)
-  const lParentTM = new Matrix4().copyPosition(lParentGX)
-  const lParentGRSM = lParentTM.clone().invert().multiply(lParentGX)
-  const lParentGSM = lParentGRM.clone().invert().multiply(lParentGRSM)
-  const lLSM = lScalingM
-  const lGlobalRS = new Matrix4()
-  const inheritType = data.inheritType
-  if (inheritType === 0) {
-    lGlobalRS.copy(lParentGRM).multiply(lLRM).multiply(lParentGSM).multiply(lLSM)
-  } else if (inheritType === 1) {
-    lGlobalRS.copy(lParentGRM).multiply(lParentGSM).multiply(lLRM).multiply(lLSM)
-  } else {
-    const lParentLSM = new Matrix4().scale(new Vector3().setFromMatrixScale(lParentLX))
-    const lParentGSM_noLocal = lParentGSM.clone().multiply(lParentLSM.clone().invert())
-    lGlobalRS.copy(lParentGRM).multiply(lLRM).multiply(lParentGSM_noLocal).multiply(lLSM)
-  }
-
-  let lTransform = lTranslationM
-    .clone()
-    .multiply(lRotationOffsetM)
-    .multiply(lRotationPivotM)
-    .multiply(lPreRotationM)
-    .multiply(lRotationM)
-    .multiply(lPostRotationM)
-    .multiply(lRotationPivotM.clone().invert())
-    .multiply(lScalingOffsetM)
-    .multiply(lScalingPivotM)
-    .multiply(lScalingM)
-    .multiply(lScalingPivotM.clone().invert())
-
-  const lLocalT = new Matrix4().copyPosition(lTransform)
-  const lGlobalT = new Matrix4().copyPosition(lParentGX.clone().multiply(lLocalT))
-  lTransform = lGlobalT.clone().multiply(lGlobalRS)
-  lTransform.premultiply(lParentGX.clone().invert())
-  return lTransform
-}
-
-/** FBX 文件 16 元与 three.js FBXLoader 一样走 `fromArray`。 */
-function fbxMat(a: ArrayLike<number>): Matrix4 {
-  const arr = a instanceof Array ? a : Array.from(a)
-  return new Matrix4().fromArray(arr)
-}
+import { DEG, fbxMat, generateTransform, getEulerOrder, maybeVec3 } from './fbx-transform.js'
 
 function applyLocal(obj: Object3D, node: FbxNode, parent: Object3D): void {
   parent.updateMatrixWorld(true)
@@ -179,9 +66,12 @@ function num(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback
 }
 
-function packed(el: { directArray: ArrayLike<number>; indexArray?: ArrayLike<number> } | undefined, comps: number) {
+function packed(
+  el: { directArray: ArrayLike<unknown>; indexArray?: ArrayLike<number> } | undefined,
+  comps: number,
+) {
   if (!el) return null
-  return { direct: el.directArray, index: el.indexArray, comps }
+  return { direct: el.directArray as ArrayLike<number>, index: el.indexArray, comps }
 }
 
 function sampleLayer(
@@ -261,13 +151,13 @@ function phong(node: FbxNode, index: number, vertexColors: boolean): MeshPhongMa
     0,
   )
   const m = new MeshPhongMaterial({
-    name: mat?.name,
     color: new Color(d[0], d[1], d[2]),
     specular: new Color(spec[0], spec[1], spec[2]),
     shininess,
     side: DoubleSide,
     vertexColors,
   })
+  if (mat?.name) m.name = mat.name
   if (opacity > 0 && opacity < 1) {
     m.transparent = true
     m.opacity = 1 - opacity

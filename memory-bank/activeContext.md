@@ -51,7 +51,7 @@
 
 `buildScene` 解析 SkinningType=Blend、CollectionExclusive→DisplayLayer、材质 DiffuseColor OP、Video `Filename`。故意不对齐：SDK 导入后的轴转换矩阵（localTransform / Cluster.Transform / GetAxisSystem）。角色全量 gold 因仓库未收录对应 FBX fixture 已撤。
 
-`tools/fbx-viewer` 用 `parse`/`buildScene` 把 FBX 转成 Three.js 场景（`pnpm viewer`）。蒙皮绑定用 TransformLink 逆矩阵；节点 Lcl 用 FBX 外旋对应的 three 内旋（缺省 `ZYX`）和完整 `generateTransform`。Z-up 场景在 toThree 后绕 X -90° 转到 Y-up。右侧 Outliner 显示 `FbxScene.rootNode` 层级，点击节点只 BoxHelper 高亮，不移动相机。
+`tools/fbx-viewer` 用 `parse` 后两条独立转 Three 路径：`buildScene`→`fbxSceneToThree`（SDK）与对照 FBXLoader 的 `fbxTreeToThree`（parse tree，不走 SDK）。加载时对两份 `Group` 做快照 diff。HUD 可切 SDK / parse / 对照（parse 洋红线框叠加）。蒙皮绑定用 TransformLink 逆矩阵；节点 Lcl 用 FBX 外旋对应的 three 内旋（缺省 `ZYX`）和完整 `generateTransform`。Z-up 场景在 toThree 后绕 X -90° 转到 Y-up。右侧 Outliner 显示 `FbxScene.rootNode` 层级，点击节点只 BoxHelper 高亮，不移动相机。
 
 解析实现已收到 `src/parse/`（`parse()` / detect / binary+ascii parser / inflate / FBX6 normalize）。`src/types.ts`、`src/util.ts`、`src/sdk/` 仍在 `src/` 根下。
 

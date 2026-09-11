@@ -6,5 +6,16 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "tests", "scripts", "vitest.config.ts", "tsup.config.ts", "tools/fbx-viewer/src/scene-tree-model.ts", "tools/fbx-viewer/src/axis-y-up.ts"]
+  "include": [
+    "src",
+    "tests",
+    "scripts",
+    "vitest.config.ts",
+    "tsup.config.ts",
+    "tools/fbx-viewer/src/scene-tree-model.ts",
+    "tools/fbx-viewer/src/axis-y-up.ts",
+    "tools/fbx-viewer/src/fbx-*.ts",
+    "tools/fbx-viewer/src/scene-snapshot.ts",
+    "tools/fbx-viewer/src/scene-diff.ts"
+  ]
 }

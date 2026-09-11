@@ -12,7 +12,7 @@
 - SDK 对齐的 TypeScript 场景数据模型（`src/sdk/`）：Math/Time/Object/Property + 完整 scene 类层次（Mesh/NURBS/Constraint/Character 等）与 classId 守卫；parse 结果改名为 `FbxParseResult`
 - `buildScene()`：tree / `FbxParseResult` → `FbxScene`（节点层级、Mesh/Skin/材质/动画/Pose/DisplayLayer/轴系）
 - `tools/fbx-dump`：基于 Autodesk FBX SDK 2020.2.1 的 scene JSON 导出 exe，用于对照本库对象图
-- `tools/fbx-viewer`：Three.js 查看器，`pnpm viewer`；蒙皮绑定对齐 TransformLink + `mesh.matrixWorld`；骨骼场景姿势对齐 FBX 欧拉外旋/`generateTransform`；右侧 Outliner 展示 SDK 场景图，点选只高亮不改相机
+- `tools/fbx-viewer`：Three.js 查看器，`pnpm viewer`；双路径 `fbxSceneToThree`（SDK）与 `fbxTreeToThree`（parse，对照 FBXLoader）；快照 diff；蒙皮绑定对齐 TransformLink + `mesh.matrixWorld`；骨骼场景姿势对齐 FBX 欧拉外旋/`generateTransform`；右侧 Outliner 展示 SDK 场景图，点选只高亮不改相机
 - 已移除 Rust/WASM 可选后端（crate、`parseWasm`、CI `wasm-check`、内联产物）：固定开销与双实现成本高于收益，解析只保留 TS `parse()`
 - 解析实现收到 `src/parse/`（detect / binary / ascii / inflate / FBX6 normalize），公共 API 仍从包入口再导出
 - `parse()` 支持 FBX 6000（与 6100 同属 6.x：32 位偏移 + Properties60 + 内嵌几何 normalize）；ASCII `Connect:` 视为 `C:`；`< 6000` 仍拒绝
