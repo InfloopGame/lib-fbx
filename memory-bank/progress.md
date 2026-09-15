@@ -16,6 +16,7 @@
 - 已移除 Rust/WASM 可选后端（crate、`parseWasm`、CI `wasm-check`、内联产物）：固定开销与双实现成本高于收益，解析只保留 TS `parse()`
 - 解析实现收到 `src/parse/`（detect / binary / ascii / inflate / FBX6 normalize），公共 API 仍从包入口再导出
 - `parse()` 支持 FBX 6000（与 6100 同属 6.x：32 位偏移 + Properties60 + 内嵌几何 normalize）；ASCII `Connect:` 视为 `C:`；`< 6000` 仍拒绝
+- 6.x `PoseNode.Matrix` 从 `propertyList` 还原；SDK 蒙皮 rest 对齐 TransformLink（不再被单位 BindPose 冲掉根骨）
 
 未完成：
 

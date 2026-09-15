@@ -38,19 +38,22 @@ export interface FbxTreeData {
   GlobalSettings?: FbxGlobalSettings
 }
 
+/** 7.x 数字 UniqueId，或 6.x 无 ID 时的对象名。 */
+export type FbxObjectId = number | string
+
 export interface FbxObjects {
-  Geometry?: Record<number, FbxGeometryNode>
-  Model?: Record<number, FbxModelNode>
-  Material?: Record<number, FbxMaterialNode>
-  Texture?: Record<number, FbxTextureNode>
-  Video?: Record<number, FbxVideoNode>
-  Deformer?: Record<number, FbxDeformerNode>
-  NodeAttribute?: Record<number, FbxNodeAttributeNode>
-  AnimationStack?: Record<number, FbxAnimStackNode>
-  AnimationLayer?: Record<number, FbxAnimLayerNode>
-  AnimationCurveNode?: Record<number, FbxAnimCurveNodeNode>
-  AnimationCurve?: Record<number, FbxAnimCurveNode>
-  Pose?: Record<number, FbxPoseNode>
+  Geometry?: Record<string, FbxGeometryNode>
+  Model?: Record<string, FbxModelNode>
+  Material?: Record<string, FbxMaterialNode>
+  Texture?: Record<string, FbxTextureNode>
+  Video?: Record<string, FbxVideoNode>
+  Deformer?: Record<string, FbxDeformerNode>
+  NodeAttribute?: Record<string, FbxNodeAttributeNode>
+  AnimationStack?: Record<string, FbxAnimStackNode>
+  AnimationLayer?: Record<string, FbxAnimLayerNode>
+  AnimationCurveNode?: Record<string, FbxAnimCurveNodeNode>
+  AnimationCurve?: Record<string, FbxAnimCurveNode>
+  Pose?: Record<string, FbxPoseNode>
   [key: string]: unknown
 }
 
@@ -61,7 +64,7 @@ export interface FbxLayerElement {
 }
 
 export interface FbxGeometryNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   attrType?: string
   Vertices?: { a: Float64Array }
@@ -87,7 +90,7 @@ export interface FbxPropertyValue {
 }
 
 export interface FbxModelNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   attrType?: string
   Lcl_Translation?: FbxPropertyValue
@@ -108,7 +111,7 @@ export interface FbxModelNode {
 }
 
 export interface FbxMaterialNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   ShadingModel?: string | FbxPropertyValue
   Diffuse?: FbxPropertyValue
@@ -129,7 +132,7 @@ export interface FbxMaterialNode {
 }
 
 export interface FbxTextureNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   FileName?: string
   RelativeFilename?: string
@@ -141,7 +144,7 @@ export interface FbxTextureNode {
 }
 
 export interface FbxVideoNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   FileName?: string
   RelativeFilename?: string
@@ -150,7 +153,7 @@ export interface FbxVideoNode {
 }
 
 export interface FbxDeformerNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   attrType?: string
   Indexes?: { a: Float64Array }
@@ -163,7 +166,7 @@ export interface FbxDeformerNode {
 }
 
 export interface FbxNodeAttributeNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   attrType?: string
   CameraProjectionType?: FbxPropertyValue
@@ -182,32 +185,32 @@ export interface FbxNodeAttributeNode {
 }
 
 export interface FbxAnimStackNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   [key: string]: unknown
 }
 
 export interface FbxAnimLayerNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   [key: string]: unknown
 }
 
 export interface FbxAnimCurveNodeNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   [key: string]: unknown
 }
 
 export interface FbxAnimCurveNode {
-  id: number
+  id: FbxObjectId
   KeyTime?: { a: Float64Array }
   KeyValueFloat?: { a: Float64Array }
   [key: string]: unknown
 }
 
 export interface FbxPoseNode {
-  id: number
+  id: FbxObjectId
   attrName?: string
   attrType?: string
   NbPoseNodes?: number
@@ -217,10 +220,10 @@ export interface FbxPoseNode {
 
 export interface FbxPoseEntry {
   Node: number
-  Matrix?: { a: Float64Array }
+  Matrix?: { a?: Float64Array; propertyList?: ArrayLike<number> }
 }
 
-export type FbxConnectionTuple = [number, number, string?]
+export type FbxConnectionTuple = [FbxObjectId, FbxObjectId, string?]
 
 export interface FbxConnections {
   connections?: FbxConnectionTuple[]

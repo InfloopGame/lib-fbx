@@ -1,6 +1,7 @@
 /**
  * FBX ASCII 格式解析器
  */
+import { parseConnRef, parseObjectHeader, placeObject } from './object-ref'
 import { FbxTree } from '../util'
 
 export class TextParser {
@@ -72,47 +73,29 @@ export class TextParser {
     const attrs = this.parseNodeAttr(nodeAttrs)
     const currentNode = this.getCurrentNode()
 
-    if (this.currentIndent === 0) {
-      this.allNodes.add(nodeName, node)
-    } else if (nodeName in currentNode) {
-      if (nodeName === 'PoseNode') {
-        ;(currentNode.PoseNode as unknown[]).push(node)
-      } else if ((currentNode[nodeName] as Record<string, unknown>).id !== undefined) {
-        const existing = currentNode[nodeName] as Record<string, unknown>
-        currentNode[nodeName] = { [String(existing.id)]: existing }
-      }
-      if (attrs.id !== '') {
-        ;(currentNode[nodeName] as Record<string, unknown>)[String(attrs.id)] = node
-      }
-    } else if (typeof attrs.id === 'number') {
-      currentNode[nodeName] = { [attrs.id]: node }
-    } else if (nodeName !== 'Properties70' && nodeName !== 'Properties60') {
-      currentNode[nodeName] = nodeName === 'PoseNode' ? [node] : node
-    }
-
-    if (typeof attrs.id === 'number') node.id = attrs.id
+    if (attrs.id !== '') node.id = attrs.id
     if (attrs.name !== '') node.attrName = attrs.name
     if (attrs.type !== '') node.attrType = attrs.type
+
+    if (this.currentIndent === 0) {
+      this.allNodes.add(nodeName, node)
+    } else if (nodeName === 'PoseNode') {
+      if (!Array.isArray(currentNode.PoseNode)) {
+        currentNode.PoseNode = currentNode.PoseNode === undefined ? [] : [currentNode.PoseNode]
+      }
+      ;(currentNode.PoseNode as unknown[]).push(node)
+    } else if (nodeName !== 'Properties70' && nodeName !== 'Properties60') {
+      placeObject(currentNode, nodeName, node)
+    }
 
     this.pushStack(node)
   }
 
   private parseNodeAttr(attrs: string[]): { id: number | string; name: string; type: string } {
-    let id: number | string = attrs[0] ?? ''
-
-    if (attrs[0] !== '') {
-      id = parseInt(attrs[0] ?? '', 10)
-      if (Number.isNaN(id)) id = attrs[0] ?? ''
-    }
-
-    let name = ''
-    let type = ''
-    if (attrs.length > 1) {
-      name = (attrs[1] ?? '').replace(/^(\w+)::/, '')
-      type = attrs[2] ?? ''
-    }
-
-    return { id, name, type }
+    const header = parseObjectHeader(
+      attrs.filter((a) => a !== '').map((a) => (/^-?\d+$/.test(a) ? Number(a) : a)),
+    )
+    return { id: header.id ?? '', name: header.attrName, type: header.attrType }
   }
 
   private parseNodeProperty(property: RegExpMatchArray, contentLine?: string): void {
@@ -132,10 +115,10 @@ export class TextParser {
     }
 
     if (propName === 'C' || propName === 'Connect') {
-      const parts = (propValue as string).split(',')
-      const from = parseInt(parts[1] ?? '', 10)
-      const to = parseInt(parts[2] ?? '', 10)
-      const rest = parts.slice(3).map((elem) => elem.trim().replace(/^"/, ''))
+      const parts = (propValue as string).split(',').map((elem) => elem.trim().replace(/^"/, '').replace(/"$/, ''))
+      const from = parseConnRef(parts[1])
+      const to = parseConnRef(parts[2])
+      const rest = parts.slice(3)
       propName = 'connections'
       propValue = [from, to, ...rest]
       if (currentNode[propName] === undefined) currentNode[propName] = []

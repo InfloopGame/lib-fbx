@@ -15,24 +15,25 @@ import {
   type Object3D,
 } from 'three'
 import type { FbxTreeData } from '@infloopgame/lib-fbx'
+import { objectRef, parseConnRef, refKey, type FbxRef } from '../../../src/parse/object-ref'
 import { fbxMat, generateTransform, getEulerOrder, maybeVec3 } from './fbx-transform.js'
 
 type Raw = Record<string, unknown>
 
-type Conn = { id: number; relationship?: string }
+type Conn = { id: FbxRef; relationship?: string }
 
 type Rel = { parents: Conn[]; children: Conn[] }
 
 type RawBone = {
-  id: number
+  id: FbxRef
   indices: ArrayLike<number>
   weights: ArrayLike<number>
   transformLink?: ArrayLike<number>
 }
 
 type SkeletonInfo = {
-  id: number
-  geometryId: number
+  id: FbxRef
+  geometryId: FbxRef
   rawBones: RawBone[]
   bones: Array<Bone | undefined>
 }
@@ -92,6 +93,10 @@ function floatArray(v: unknown): Float64Array {
   const rec = asRaw(v)
   if (rec?.a instanceof Float64Array) return rec.a
   if (Array.isArray(rec?.a)) return Float64Array.from((rec.a as number[]).map(Number))
+  const list = rec?.propertyList
+  if (Array.isArray(list) && list.length > 0 && list.every((x) => typeof x === 'number')) {
+    return Float64Array.from(list as number[])
+  }
   return new Float64Array(0)
 }
 
@@ -109,21 +114,23 @@ function collectValues(raw: unknown): Raw[] {
   return Object.values(rec).filter((x): x is Raw => !!asRaw(x) && !(x instanceof Float64Array))
 }
 
-function parseConnections(tree: FbxTreeData): Map<number, Rel> {
-  const map = new Map<number, Rel>()
-  const ensure = (id: number): Rel => {
-    let rel = map.get(id)
+function parseConnections(tree: FbxTreeData): Map<string, Rel> {
+  const map = new Map<string, Rel>()
+  const ensure = (id: FbxRef): Rel => {
+    const key = refKey(id)
+    let rel = map.get(key)
     if (!rel) {
       rel = { parents: [], children: [] }
-      map.set(id, rel)
+      map.set(key, rel)
     }
     return rel
   }
   const list = ((tree.Connections as { connections?: unknown[] } | undefined)?.connections ?? []) as unknown[]
   for (const entry of list) {
     if (!Array.isArray(entry) || entry.length < 2) continue
-    const from = Number(entry[0])
-    const to = Number(entry[1])
+    const from = parseConnRef(entry[0])
+    const to = parseConnRef(entry[1])
+    if (from === undefined || to === undefined) continue
     const relationship = typeof entry[2] === 'string' ? entry[2] : undefined
     ensure(from).parents.push({ id: to, relationship })
     ensure(to).children.push({ id: from, relationship })
@@ -131,8 +138,8 @@ function parseConnections(tree: FbxTreeData): Map<number, Rel> {
   return map
 }
 
-function relOf(connections: Map<number, Rel>, id: number): Rel {
-  return connections.get(id) ?? { parents: [], children: [] }
+function relOf(connections: Map<string, Rel>, id: FbxRef): Rel {
+  return connections.get(refKey(id)) ?? { parents: [], children: [] }
 }
 
 type LayerPack = { direct: ArrayLike<number>; index?: ArrayLike<number>; comps: number; mapping: string; reference: string }
@@ -233,25 +240,27 @@ function parsePhong(raw: Raw, vertexColors: boolean): MeshPhongMaterial {
   return m
 }
 
-function parseMaterials(tree: FbxTreeData): Map<number, MeshPhongMaterial> {
-  const map = new Map<number, MeshPhongMaterial>()
+function parseMaterials(tree: FbxTreeData): Map<string, MeshPhongMaterial> {
+  const map = new Map<string, MeshPhongMaterial>()
   for (const [key, raw] of Object.entries(bucket(tree, 'Material'))) {
-    const id = Number(raw.id ?? key)
-    map.set(id, parsePhong(raw, false))
+    const id = objectRef(raw, key)
+    if (id === undefined) continue
+    map.set(refKey(id), parsePhong(raw, false))
   }
   return map
 }
 
-function parseSkeletons(tree: FbxTreeData, connections: Map<number, Rel>): Record<number, SkeletonInfo> {
-  const out: Record<number, SkeletonInfo> = {}
+function parseSkeletons(tree: FbxTreeData, connections: Map<string, Rel>): Record<string, SkeletonInfo> {
+  const out: Record<string, SkeletonInfo> = {}
   const deformers = bucket(tree, 'Deformer')
   for (const [key, raw] of Object.entries(deformers)) {
     if (String(raw.attrType) !== 'Skin') continue
-    const id = Number(raw.id ?? key)
+    const id = objectRef(raw, key)
+    if (id === undefined) continue
     const rel = relOf(connections, id)
     const rawBones: RawBone[] = []
     for (const child of rel.children) {
-      const node = deformers[String(child.id)]
+      const node = deformers[refKey(child.id)]
       if (!node || String(node.attrType) !== 'Cluster') continue
       const link = floatArray(node.TransformLink)
       rawBones.push({
@@ -261,7 +270,7 @@ function parseSkeletons(tree: FbxTreeData, connections: Map<number, Rel>): Recor
         transformLink: link.length >= 16 ? link : undefined,
       })
     }
-    out[id] = {
+    out[refKey(id)] = {
       id,
       geometryId: rel.parents[0]?.id ?? -1,
       rawBones,
@@ -402,26 +411,28 @@ function buildGeometry(
 
 function parseGeometries(
   tree: FbxTreeData,
-  connections: Map<number, Rel>,
-  skeletons: Record<number, SkeletonInfo>,
-): Map<number, { geo: BufferGeometry; skinned: boolean; skeleton?: SkeletonInfo }> {
-  const map = new Map<number, { geo: BufferGeometry; skinned: boolean; skeleton?: SkeletonInfo }>()
+  connections: Map<string, Rel>,
+  skeletons: Record<string, SkeletonInfo>,
+): Map<string, { geo: BufferGeometry; skinned: boolean; skeleton?: SkeletonInfo }> {
+  const map = new Map<string, { geo: BufferGeometry; skinned: boolean; skeleton?: SkeletonInfo }>()
   const models = bucket(tree, 'Model')
   for (const [key, raw] of Object.entries(bucket(tree, 'Geometry'))) {
     if (String(raw.attrType ?? 'Mesh').toLowerCase() !== 'mesh') continue
-    const id = Number(raw.id ?? key)
+    const id = objectRef(raw, key)
+    if (id === undefined) continue
     const rel = relOf(connections, id)
-    const model = models[String(rel.parents[0]?.id ?? '')]
-    const skeleton = rel.children.map((c) => skeletons[c.id]).find(Boolean)
+    const parentId = rel.parents[0]?.id
+    const model = parentId === undefined ? undefined : models[refKey(parentId)]
+    const skeleton = rel.children.map((c) => skeletons[refKey(c.id)]).find(Boolean)
     const built = buildGeometry(raw, model, skeleton)
     if (!built) continue
-    map.set(id, { ...built, skeleton })
+    map.set(refKey(id), { ...built, skeleton })
   }
   return map
 }
 
-function parsePoseMatrices(tree: FbxTreeData): Map<number, Matrix4> {
-  const out = new Map<number, Matrix4>()
+function parsePoseMatrices(tree: FbxTreeData): Map<string, Matrix4> {
+  const out = new Map<string, Matrix4>()
   for (const raw of Object.values(bucket(tree, 'Pose'))) {
     if (String(raw.attrType) !== 'BindPose') continue
     const nodes = raw.PoseNode
@@ -429,10 +440,10 @@ function parsePoseMatrices(tree: FbxTreeData): Map<number, Matrix4> {
     for (const entry of list) {
       const rec = asRaw(entry)
       if (!rec) continue
-      const nodeId = Number(rec.Node)
+      const nodeId = parseConnRef(rec.Node)
       const mat = floatArray(rec.Matrix)
-      if (!Number.isFinite(nodeId) || mat.length < 16) continue
-      out.set(nodeId, fbxMat(mat))
+      if (nodeId === undefined || mat.length < 16) continue
+      out.set(refKey(nodeId), fbxMat(mat))
     }
   }
   return out
@@ -448,19 +459,19 @@ function applyLocal(obj: Object3D, node: Raw, parent: Object3D): void {
 }
 
 function findBoneForCluster(
-  skeletons: Record<number, SkeletonInfo>,
-  clusterId: number,
-  modelId: number,
+  skeletons: Record<string, SkeletonInfo>,
+  clusterId: FbxRef,
+  modelId: FbxRef,
   name: string,
 ): Bone | null {
   let bone: Bone | null = null
   for (const skel of Object.values(skeletons)) {
     for (let i = 0; i < skel.rawBones.length; i++) {
-      if (skel.rawBones[i]!.id !== clusterId) continue
+      if (refKey(skel.rawBones[i]!.id) !== refKey(clusterId)) continue
       const existing = bone
       bone = new Bone()
       bone.name = name
-      ;(bone as Bone & { userData: { fbxId: number } }).userData.fbxId = modelId
+      ;(bone as Bone & { userData: { fbxId: FbxRef } }).userData.fbxId = modelId
       const link = skel.rawBones[i]!.transformLink
       if (link) bone.matrixWorld.copy(fbxMat(link))
       skel.bones[i] = bone
@@ -477,13 +488,15 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
   const skeletons = parseSkeletons(tree, connections)
   const geometries = parseGeometries(tree, connections, skeletons)
   const models = bucket(tree, 'Model')
-  const modelMap = new Map<number, Object3D>()
+  const modelMap = new Map<string, Object3D>()
   const bones: Bone[] = []
   const meshes: Array<Mesh | SkinnedMesh> = []
+  const pendingSkins: Array<{ mesh: SkinnedMesh; skeleton: SkeletonInfo }> = []
   let clusterCount = 0
 
   for (const [key, node] of Object.entries(models)) {
-    const id = Number(node.id ?? key)
+    const id = objectRef(node, key)
+    if (id === undefined) continue
     const name = str(node.attrName) || str(node.name)
     const rel = relOf(connections, id)
     let obj: Object3D | null = null
@@ -500,12 +513,12 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
         let skeleton: SkeletonInfo | undefined
         const mats: Material[] = []
         for (const child of rel.children) {
-          const g = geometries.get(child.id)
+          const g = geometries.get(refKey(child.id))
           if (g) {
             geometry = g.geo
             skeleton = g.skeleton
           }
-          const mat = materials.get(child.id)
+          const mat = materials.get(refKey(child.id))
           if (mat) mats.push(mat.clone())
         }
         if (!geometry) {
@@ -525,20 +538,7 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
           const material = mats.length === 1 ? mats[0]! : mats
           const skinned = Boolean(skeleton && skeleton.rawBones.length > 0)
           const mesh = skinned ? new SkinnedMesh(geometry, material) : new Mesh(geometry, material)
-          if (skinned && skeleton) {
-            const boneList: Bone[] = []
-            const links: Array<ArrayLike<number> | undefined> = []
-            skeleton.rawBones.forEach((raw, i) => {
-              const b = skeleton.bones[i]
-              if (!b) return
-              boneList.push(b)
-              links.push(raw.transformLink)
-            })
-            if (boneList.length) {
-              ;(mesh as SkinnedMesh).userData.fbxSkinBind = { bones: boneList, transformLinks: links } satisfies PendingBind
-              clusterCount += skeleton.rawBones.length
-            }
-          }
+          if (skinned && skeleton) pendingSkins.push({ mesh: mesh as SkinnedMesh, skeleton })
           obj = mesh
           meshes.push(mesh)
         }
@@ -550,8 +550,8 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
     }
 
     obj.name = name
-    ;(obj as Object3D & { userData: { fbxId: number } }).userData.fbxId = id
-    modelMap.set(id, obj)
+    ;(obj as Object3D & { userData: { fbxId: FbxRef } }).userData.fbxId = id
+    modelMap.set(refKey(id), obj)
     if (obj.type === 'Bone') bones.push(obj as Bone)
   }
 
@@ -562,8 +562,8 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
     const rel = relOf(connections, id)
     let parented = false
     for (const p of rel.parents) {
-      const parent = modelMap.get(p.id)
-      if (parent) {
+      const parent = modelMap.get(refKey(p.id))
+      if (parent && parent !== obj) {
         parent.add(obj)
         parented = true
       }
@@ -572,19 +572,19 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
   }
 
   for (const [id, obj] of modelMap) {
-    const node = models[String(id)]
+    const node = models[id]
     if (!node || !obj.parent) continue
     applyLocal(obj, node, obj.parent)
   }
 
   const pose = parsePoseMatrices(tree)
-  const clustered = new Set<number>()
+  const clustered = new Set<string>()
   for (const skel of Object.values(skeletons)) {
     for (const raw of skel.rawBones) {
       for (const [id, obj] of modelMap) {
         if (obj.type !== 'Bone') continue
         const rel = relOf(connections, id)
-        if (rel.parents.some((p) => p.id === raw.id)) clustered.add(id)
+        if (rel.parents.some((p) => refKey(p.id) === refKey(raw.id))) clustered.add(id)
       }
     }
   }
@@ -602,11 +602,28 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
   }
 
   root.updateMatrixWorld(true)
+  for (const { mesh, skeleton } of pendingSkins) {
+    const boneList: Bone[] = []
+    const links: Array<ArrayLike<number> | undefined> = []
+    skeleton.rawBones.forEach((raw, i) => {
+      const b = skeleton.bones[i]
+      if (!b) return
+      boneList.push(b)
+      links.push(raw.transformLink)
+    })
+    if (boneList.length) {
+      mesh.userData.fbxSkinBind = { bones: boneList, transformLinks: links } satisfies PendingBind
+      clusterCount += skeleton.rawBones.length
+    }
+  }
   for (const mesh of meshes) {
     if (!(mesh instanceof SkinnedMesh)) continue
     const pending = mesh.userData.fbxSkinBind as PendingBind | undefined
-    if (!pending) continue
     mesh.updateMatrixWorld(true)
+    if (!pending || pending.bones.length === 0) {
+      mesh.bind(new Skeleton([]), mesh.matrixWorld)
+      continue
+    }
     const inverses = pending.bones.map((bone, i) => {
       const link = pending.transformLinks[i]
       return link ? fbxMat(link).invert() : bone.matrixWorld.clone().invert()

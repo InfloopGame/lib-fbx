@@ -1,3 +1,4 @@
+import { isRootRef, objectRef, parseConnRef, refKey } from '../parse/object-ref'
 import type { FbxParseResult, FbxPropertyValue, FbxTreeData } from '../types'
 import type { FbxAnimCurve, FbxAnimCurveNode, FbxAnimLayer, FbxAnimStack } from './animation'
 import { FbxAnimInterpolation } from './animation'
@@ -82,16 +83,24 @@ const NODE_PROP_FIELDS: Record<string, keyof FbxNode> = {
 export function buildScene(input: FbxTreeData | FbxParseResult): FbxScene {
   const tree = isParseResult(input) ? input.tree : input
   const objects = (tree.Objects ?? {}) as Raw
-  const created = new Map<number, FbxObject>()
+  const created = new Map<string, FbxObject>()
+  const modelAttrTypes = new Map<FbxObject, string>()
+  let namelessSeq = 1
 
   for (const [section, bucket] of Object.entries(objects)) {
     if (!bucket || typeof bucket !== 'object' || Array.isArray(bucket)) continue
     for (const [key, value] of Object.entries(bucket as Raw)) {
       if (!value || typeof value !== 'object' || Array.isArray(value)) continue
       const raw = value as Raw
-      const id = Number(raw.id ?? key)
-      if (!Number.isFinite(id)) continue
-      created.set(id, createObject(section, id, raw))
+      const ref = objectRef(raw, key)
+      if (ref === undefined) continue
+      const uniqueId = typeof ref === 'number' ? ref : namelessSeq++
+      const obj = createObject(section, uniqueId, raw)
+      created.set(refKey(ref), obj)
+      if (section === 'Model') {
+        const attrType = String(raw.attrType ?? '')
+        if (attrType) modelAttrTypes.set(obj, attrType)
+      }
     }
   }
 
@@ -101,12 +110,13 @@ export function buildScene(input: FbxTreeData | FbxParseResult): FbxScene {
 
   for (const entry of rawConns) {
     if (!Array.isArray(entry) || entry.length < 2) continue
-    const srcId = Number(entry[0])
-    const dstId = Number(entry[1])
+    const srcRef = parseConnRef(entry[0])
+    const dstRef = parseConnRef(entry[1])
+    if (srcRef === undefined || dstRef === undefined) continue
     const rel = typeof entry[2] === 'string' ? normalizeName(entry[2]) : undefined
     const kind: FbxConnectionFileKind = rel ? 'OP' : 'OO'
-    const srcObj = created.get(srcId)
-    const dstObj = dstId === 0 ? rootNode : created.get(dstId)
+    const srcObj = created.get(refKey(srcRef))
+    const dstObj = isRootRef(dstRef) ? rootNode : created.get(refKey(dstRef))
     if (!srcObj || !dstObj) continue
 
     srcObj.dstObjects.push(dstObj)
@@ -135,7 +145,8 @@ export function buildScene(input: FbxTreeData | FbxParseResult): FbxScene {
     rootNode.children.push(node)
   }
 
-  const all = [...created.values()]
+  const implied = attachImpliedSkeletons(created, modelAttrTypes)
+  const all = [...created.values(), ...implied]
   const scene: FbxScene = {
     uniqueId: -1,
     name: 'Scene',
@@ -147,7 +158,9 @@ export function buildScene(input: FbxTreeData | FbxParseResult): FbxScene {
     members: [rootNode, ...all],
     roots: [rootNode],
     rootNode,
-    globalSettings: buildGlobalSettings(tree.GlobalSettings as Raw | undefined),
+    globalSettings: buildGlobalSettings(
+      (tree.GlobalSettings as Raw | undefined) ?? pickEmbeddedGlobalSettings(objects),
+    ),
     poses: all.filter((o): o is FbxPose => o.classId === 'FbxPose'),
     animStacks: all.filter((o): o is FbxAnimStack => o.classId === 'FbxAnimStack'),
     materials: all.filter((o): o is FbxSurfaceMaterial => isMaterial(o.classId)),
@@ -161,6 +174,25 @@ export function buildScene(input: FbxTreeData | FbxParseResult): FbxScene {
 
   for (const pose of scene.poses) resolvePose(pose, created)
   return scene
+}
+
+const IMPLIED_SKELETON_TYPES = new Set(['limbnode', 'limb', 'root', 'effector', 'skeleton'])
+
+/** 6.x 的 LimbNode 写在 Model.attrType，没有独立 NodeAttribute。 */
+function attachImpliedSkeletons(created: Map<string, FbxObject>, attrTypes: Map<FbxObject, string>): FbxObject[] {
+  const extra: FbxObject[] = []
+  for (const obj of created.values()) {
+    if (obj.classId !== 'FbxNode') continue
+    const node = obj as FbxNode
+    if (node.nodeAttributes.some((a) => a.classId === 'FbxSkeleton')) continue
+    const t = (attrTypes.get(obj) ?? '').toLowerCase()
+    if (!IMPLIED_SKELETON_TYPES.has(t)) continue
+    const skel = makeNodeAttribute(node.uniqueId, node.name, t, {})
+    node.nodeAttributes.push(skel)
+    skel.nodes.push(node)
+    extra.push(skel)
+  }
+  return extra
 }
 
 function isParseResult(input: FbxTreeData | FbxParseResult): input is FbxParseResult {
@@ -558,8 +590,8 @@ function makePose(id: number, name: string, attrType: string, raw: Raw): FbxPose
     restPose: /rest/i.test(attrType),
     poseInfos: collectValues(raw.PoseNode).map((entry) => ({
       node: undefined as unknown as FbxNode,
-      nodeId: Number(entry.Node ?? entry.id),
-      matrix: asMatrix(entry.Matrix) ?? IDENTITY,
+      nodeId: parseConnRef(entry.Node ?? entry.id),
+      matrix: asMatrix(entry.Matrix),
       matrixIsLocal: false,
     })) as unknown as FbxPoseInfo[],
   }
@@ -713,14 +745,28 @@ function wirePair(src: FbxObject, dst: FbxObject, rel?: string): void {
   }
 }
 
-function resolvePose(pose: FbxPose, created: Map<number, FbxObject>): void {
+function resolvePose(pose: FbxPose, created: Map<string, FbxObject>): void {
   const infos: FbxPoseInfo[] = []
-  for (const info of pose.poseInfos as Array<FbxPoseInfo & { nodeId?: number }>) {
-    const node = created.get(Number(info.nodeId))
+  for (const info of pose.poseInfos as Array<FbxPoseInfo & { nodeId?: unknown }>) {
+    const ref = parseConnRef(info.nodeId)
+    const node = ref === undefined ? undefined : created.get(refKey(ref))
     if (node?.classId !== 'FbxNode') continue
     infos.push({ node: node as FbxNode, matrix: info.matrix, matrixIsLocal: info.matrixIsLocal })
   }
   pose.poseInfos = infos
+}
+
+function pickEmbeddedGlobalSettings(objects: Raw): Raw | undefined {
+  const gs = objects.GlobalSettings
+  if (!gs || typeof gs !== 'object' || Array.isArray(gs)) return undefined
+  const rec = gs as Raw
+  if ('UpAxis' in rec || 'UnitScaleFactor' in rec) return rec
+  for (const value of Object.values(rec)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+    const child = value as Raw
+    if ('UpAxis' in child || 'UnitScaleFactor' in child) return child
+  }
+  return undefined
 }
 
 function buildLayers(raw: Raw): FbxLayer[] {
@@ -1016,6 +1062,10 @@ function floatArray(v: unknown): Float64Array {
   if (v && typeof v === 'object' && (v as Raw).a instanceof Float64Array) return (v as { a: Float64Array }).a
   if (v && typeof v === 'object' && Array.isArray((v as Raw).a)) {
     return Float64Array.from(((v as Raw).a as number[]).map(Number))
+  }
+  const list = v && typeof v === 'object' ? (v as Raw).propertyList : undefined
+  if (Array.isArray(list) && list.length > 0 && list.every((x) => typeof x === 'number')) {
+    return Float64Array.from(list as number[])
   }
   return new Float64Array(0)
 }

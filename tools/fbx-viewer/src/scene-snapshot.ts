@@ -62,8 +62,8 @@ function meshStats(obj: Object3D): {
       bounds = [min.x, min.y, min.z, max.x, max.y, max.z]
     }
   }
-  const bones = mesh.skeleton?.bones.length ?? 0
-  const clusters = mesh.skeleton?.boneInverses.length ?? 0
+  const bones = mesh.skeleton?.bones?.length ?? 0
+  const clusters = mesh.skeleton?.boneInverses?.length ?? 0
   const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
   const c = mat?.color
   const materialColor = c ? ([c.r, c.g, c.b] as [number, number, number]) : null

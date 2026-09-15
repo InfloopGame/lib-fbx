@@ -61,4 +61,18 @@
 
 `pnpm bench` 分别计时 `parse()` 与 `buildScene()`（SDK 对象图），每文件 N 次取中位数并汇总吞吐量。
 
+**6.x 无 UniqueId：按名字解析**（已落地）：
+
+`src/parse/object-ref.ts`：7.x 仍是 `[id, name, type]`；6.x 是 `[name, type]`。同名 Objects 用名字做 key；Connect 保留名字（`Scene` = 根）。几何数据的浮点首项不当 ID。`buildScene` / `fbxTreeToThree` 用 `parseConnRef` 查找。
+
+行秋 `Avatar_Boy_Sword_Xingqiu_Model.fbx`（binary 6100，17.18 MB）：141 Model、15 Mesh（Body 8005 顶点 / 92 cluster）、392 Cluster、1126 连接，骨架挂在 Bip001 下。
+
+`fbxTreeToThree` 必须先建完 LimbNode 骨骼再 bind：Mesh 在文件里排在骨头前面时，第一遍 `skeleton.bones` 还是空的，会留下未 bind 的 `SkinnedMesh`，快照 `Box3.setFromObject` → `applyBoneTransform` 读 `skeleton.bones` 崩溃。
+
+检查脚本：`pnpm exec tsx scripts/inspect-fbx.ts <file.fbx>`。
+
+`buildScene` 在连接走完后，若 Model.attrType 是 LimbNode/Limb/Root 且还没有 `FbxSkeleton`，补一条（6.x 没有独立 NodeAttribute）。行秋 SDK 现在也是 126 骨。7.x 已有 NodeAttribute 的不重复造。
+
+**6.x BindPose Matrix / SDK 蒙皮错位**（已修）：binary 6.x 的 `PoseNode.Matrix` 是 16 个标量 `propertyList`，没有 `.a`。`floatArray` 读空后 `makePose` 用单位矩阵兜底，`applyBindPose` 把未挂 cluster 的根骨（行秋 `Bip001`）打成 identity，子骨 Lcl 相对错误父矩阵，`boneWorld ≠ TransformLink`，skin 炸开。parse 路径的 cluster 骨不在层级里、`matrixWorld` 一直是 TransformLink，所以看起来是对的。修复：`floatArray` 认数字 `propertyList`；`normalize-fbx6` 把 `Matrix` 提升为 `.a`；缺矩阵不再写成单位阵。行秋 Body：92 骨与 TransformLink 对齐（max Δ≈2e-5），bbox / rest 顶点与 parse 一致。
+
 下一步：铺其它 fixture 的 dump 金标准；完善 ASCII/binary 解析边界测试，抬升覆盖率。

@@ -4,10 +4,15 @@ export {
   detectFormat,
   getFbxVersion,
   inflate,
+  isRootRef,
   normalizeFbx6Tree,
+  objectRef,
   parse,
+  parseConnRef,
+  refKey,
   TextParser,
 } from './parse'
+export type { FbxRef } from './parse'
 export { FbxError, FbxTree, version } from './util'
 export type {
   FbxConnectionTuple,
@@ -15,6 +20,7 @@ export type {
   FbxErrorCode,
   FbxFormat,
   FbxInput,
+  FbxObjectId,
   FbxObjects,
   FbxParseResult,
   FbxProperty as FbxTreeProperty,

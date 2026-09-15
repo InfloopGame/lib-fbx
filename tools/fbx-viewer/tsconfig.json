@@ -11,7 +11,10 @@
     "verbatimModuleSyntax": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@infloopgame/lib-fbx": ["../../src/index.ts"]
+    }
   },
   "include": ["./src/**/*.ts", "./vite.config.ts"]
 }

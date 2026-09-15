@@ -8,6 +8,8 @@
 - 构建：tsup 产出 ESM + CJS + d.ts。
 - 测试：根目录 `tests/`（不放 `src`），vitest，覆盖率统计只含 `src`，排除 `src/types.ts`、`src/sdk` 类型文件（保留 `guards.ts` / `build-scene.ts`）。
 - Benchmark：`scripts/fbx-benchmark.ts`，`pnpm bench -- <dir>` 递归扫 `.fbx`，分别统计 `parse()` 与 `buildScene()` 中位数耗时。
+- 单文件摘要：`pnpm exec tsx scripts/inspect-fbx.ts <file.fbx>`（parse + buildScene + Objects/连接/网格统计）。
+- 对象引用：`src/parse/object-ref.ts`。7.x `[id, name, type]` 用数字 ID；6.x `[name, type]` 用名字做 key / Connect。`Scene` / `RootNode` / `0` 是根。几何节点首项是 float 或一串数字时不当 UniqueId。
 - 官方 SDK 金标准：`tools/fbx-dump/fbx-dump.exe` 导出 JSON scene。Three.js 查看器：`tools/fbx-viewer/`（`pnpm viewer`），`parse` 后分 SDK / parse 两条转 Three，并用 `snapshotScene` + `diffSnapshots` 对照。节点局部矩阵对齐 three.js FBXLoader：`getEulerOrder`（FBX 外旋→内旋）+ `generateTransform`（pivot / inheritType）。蒙皮 `boneInverse = Inverse(TransformLink)`，`mesh.bind(skeleton, mesh.matrixWorld)`。右侧 Outliner 走 `FbxScene.rootNode`，`fbxSceneToThree` 导出 `nodeMap` 做点选高亮。
 - 发布：tag `v*` → `.github/workflows/publish.yml` 用 OIDC 跑 `npm stage publish`，维护者 2FA `npm stage approve`。
 

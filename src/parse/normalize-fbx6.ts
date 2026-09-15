@@ -2,6 +2,7 @@
  * 将 FBX 6.x 节点树规范化为 7.x 结构
  * 6.x 中几何数据内嵌在 Model 节点内，需要拆分为独立 Geometry 节点
  */
+import { parseConnRef, refKey } from './object-ref'
 import type { FbxTree } from '../util'
 
 type AnyRecord = Record<string, unknown>
@@ -45,6 +46,7 @@ const ARRAY_DATA_KEYS = new Set([
   'Weights',
   'TransformLink',
   'Transform',
+  'Matrix',
   'FullWeights',
 ])
 
@@ -58,12 +60,13 @@ export function normalizeFbx6Tree(tree: FbxTree): void {
   walk(tree as unknown as AnyRecord)
 
   let syntheticGeoId = 900000
-  const embeddedModelGeoIds = new Map<number, number>()
+  const embeddedModelGeoIds = new Map<string, number>()
 
   const models = objects.Model as AnyRecord
   for (const modelId in models) {
     const modelNode = models[modelId] as AnyRecord
-    if (typeof modelNode !== 'object' || modelNode === null) continue
+    if (typeof modelNode !== 'object' || modelNode === null || Array.isArray(modelNode)) continue
+    if (!('attrName' in modelNode || 'propertyList' in modelNode || 'attrType' in modelNode)) continue
 
     const hasEmbeddedGeo = GEO_KEYS.some((k) => k in modelNode)
     if (!hasEmbeddedGeo) continue
@@ -84,25 +87,29 @@ export function normalizeFbx6Tree(tree: FbxTree): void {
     }
 
     ;(objects.Geometry as AnyRecord)[geoId] = geoNode
-    embeddedModelGeoIds.set(parseInt(modelId, 10), geoId)
+    const modelRef = parseConnRef(modelId) ?? modelId
+    embeddedModelGeoIds.set(refKey(modelRef), geoId)
 
     if (!(tree as AnyRecord).Connections) (tree as AnyRecord).Connections = {}
     const conn = (tree as AnyRecord).Connections as AnyRecord
     if (!conn.connections) conn.connections = []
-    ;(conn.connections as unknown[]).push([geoId, parseInt(modelId, 10)])
+    ;(conn.connections as unknown[]).push([geoId, modelRef])
   }
 
   if (embeddedModelGeoIds.size > 0 && objects.Deformer && (tree as AnyRecord).Connections) {
     const connections = ((tree as AnyRecord).Connections as AnyRecord).connections as unknown[][] | undefined
+    const deformers = objects.Deformer as AnyRecord
     if (connections) {
       for (const c of connections) {
-        const fromID = c[0] as number
-        const toID = c[1] as number
-        const deformer = (objects.Deformer as AnyRecord)[fromID] as AnyRecord | undefined
+        const fromRef = parseConnRef(c[0])
+        const toRef = parseConnRef(c[1])
+        if (fromRef === undefined || toRef === undefined) continue
+        const deformer = (deformers[fromRef] ?? deformers[refKey(fromRef)]) as AnyRecord | undefined
 
         if (!deformer || (deformer.attrType !== 'Skin' && deformer.attrType !== 'BlendShape')) continue
-        if (!embeddedModelGeoIds.has(toID)) continue
-        c[1] = embeddedModelGeoIds.get(toID)
+        const geoId = embeddedModelGeoIds.get(refKey(toRef))
+        if (geoId === undefined) continue
+        c[1] = geoId
       }
     }
   }
@@ -135,8 +142,12 @@ function normalizeArrayDataNode(parent: AnyRecord, key: string): void {
   if (child.a !== undefined) return
 
   const list = child.propertyList as unknown[] | undefined
-  if (Array.isArray(list) && list.length > 0 && typeof list[0] === 'number') {
-    // 6.x propertyList 里是 number 元素；对齐 7.x 的 `.a` 类型（Float64Array）方便下游统一遍历
+  if (!Array.isArray(list) || list.length === 0) return
+  if (list[0] instanceof Float64Array) {
+    child.a = list[0]
+    return
+  }
+  if (typeof list[0] === 'number') {
     child.a = Float64Array.from(list as number[])
   }
 }

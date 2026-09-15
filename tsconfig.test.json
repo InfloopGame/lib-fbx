@@ -4,7 +4,10 @@
     "rootDir": ".",
     "noEmit": true,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "paths": {
+      "@infloopgame/lib-fbx": ["./src/index.ts"]
+    }
   },
   "include": [
     "src",

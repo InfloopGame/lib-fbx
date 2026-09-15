@@ -1,6 +1,15 @@
+import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
 
+const repo = fileURLToPath(new URL('.', import.meta.url))
+
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@infloopgame/lib-fbx': resolve(repo, 'src/index.ts'),
+    },
+  },
   test: {
     include: ['tests/**/*.test.ts'],
     coverage: {

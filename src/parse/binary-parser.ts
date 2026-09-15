@@ -4,14 +4,9 @@
  */
 import { BinaryReader } from './binary-reader'
 import { inflate } from './inflate'
+import { parseConnRef, parseObjectHeader, placeObject } from './object-ref'
 import type { FbxProperty } from '../types'
 import { FbxError, FbxTree } from '../util'
-
-/** 剥离 attrName 里的 `TypeName::` 前缀，与 ASCII TextParser 行为对齐。 */
-function stripTypePrefix(value: FbxProperty | undefined): FbxProperty | '' {
-  if (typeof value !== 'string') return value ?? ''
-  return value.replace(/^(\w+)::/, '')
-}
 
 export class BinaryParser {
   version = 0
@@ -71,10 +66,6 @@ export class BinaryParser {
       return null
     }
 
-    const id = propertyList.length > 0 ? propertyList[0] : ''
-    const attrName = propertyList.length > 1 ? propertyList[1] : ''
-    const attrType = propertyList.length > 2 ? propertyList[2] : ''
-
     node.singleProperty = numProperties === 1 && reader.getOffset() === endOffset
 
     while (endOffset > reader.getOffset()) {
@@ -84,9 +75,10 @@ export class BinaryParser {
 
     node.propertyList = propertyList
 
-    if (typeof id === 'number') node.id = id
-    if (attrName !== '') node.attrName = stripTypePrefix(attrName)
-    if (attrType !== '') node.attrType = attrType
+    const header = parseObjectHeader(propertyList)
+    if (header.id !== undefined) node.id = header.id
+    if (header.attrName !== '') node.attrName = header.attrName
+    if (header.attrType !== '') node.attrType = header.attrType
     if (name !== '') node.name = name
 
     return node
@@ -109,7 +101,8 @@ export class BinaryParser {
       const array: unknown[] = []
       ;(subNode.propertyList as FbxProperty[]).forEach((property, i) => {
         if (i === 0) return
-        array.push(property)
+        const ref = parseConnRef(property)
+        array.push(ref !== undefined ? ref : property)
       })
 
       if (node.connections === undefined) node.connections = []
@@ -122,19 +115,13 @@ export class BinaryParser {
       this.assignProperty70(node, subNode.propertyList as FbxProperty[])
     } else if (name === 'Properties60' && subName === 'Property') {
       this.assignProperty60(node, subNode.propertyList as FbxProperty[])
-    } else if (node[subName] === undefined) {
-      if (typeof subNode.id === 'number') {
-        node[subName] = { [String(subNode.id)]: subNode }
-      } else {
-        node[subName] = subNode
-      }
     } else if (subName === 'PoseNode') {
       if (!Array.isArray(node[subName])) {
-        node[subName] = [node[subName]]
+        node[subName] = node[subName] === undefined ? [] : [node[subName]]
       }
       ;(node[subName] as unknown[]).push(subNode)
-    } else if ((node[subName] as Record<string, unknown>)[String(subNode.id)] === undefined) {
-      ;(node[subName] as Record<string, unknown>)[String(subNode.id)] = subNode
+    } else {
+      placeObject(node, subName, subNode)
     }
   }
 
