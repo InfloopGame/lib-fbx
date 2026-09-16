@@ -17,6 +17,7 @@
 - 解析实现收到 `src/parse/`（detect / binary / ascii / inflate / FBX6 normalize），公共 API 仍从包入口再导出
 - `parse()` 支持 FBX 6000（与 6100 同属 6.x：32 位偏移 + Properties60 + 内嵌几何 normalize）；ASCII `Connect:` 视为 `C:`；`< 6000` 仍拒绝
 - 6.x `PoseNode.Matrix` 从 `propertyList` 还原；SDK 蒙皮 rest 对齐 TransformLink（不再被单位 BindPose 冲掉根骨）
+- 6.x `ByVertice` 映射为 `ByControlPoint`；SDK 脸部等 mesh 法线与 parse 对齐
 
 未完成：
 

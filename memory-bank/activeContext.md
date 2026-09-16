@@ -75,4 +75,6 @@
 
 **6.x BindPose Matrix / SDK 蒙皮错位**（已修）：binary 6.x 的 `PoseNode.Matrix` 是 16 个标量 `propertyList`，没有 `.a`。`floatArray` 读空后 `makePose` 用单位矩阵兜底，`applyBindPose` 把未挂 cluster 的根骨（行秋 `Bip001`）打成 identity，子骨 Lcl 相对错误父矩阵，`boneWorld ≠ TransformLink`，skin 炸开。parse 路径的 cluster 骨不在层级里、`matrixWorld` 一直是 TransformLink，所以看起来是对的。修复：`floatArray` 认数字 `propertyList`；`normalize-fbx6` 把 `Matrix` 提升为 `.a`；缺矩阵不再写成单位阵。行秋 Body：92 骨与 TransformLink 对齐（max Δ≈2e-5），bbox / rest 顶点与 parse 一致。
 
+**6.x `ByVertice` 法线 / SDK 网格光照不一致**（已修）：FBX 6.x LayerElement 用 `ByVertice`（= 7.x `ByControlPoint`）。parse 路径按控制点取样；SDK `parseMapping` 不认这个别名，落成 `eNone` 后按多边形顶点取样。脸/眼/眉/特效 mesh 法线全错（Body 用的是 `ByPolygonVertex` 所以看起来还行）。`parseMapping` 把 `ByVertice`/`ByVertex` 映射到 `eByControlPoint`。行秋 15 个 mesh 顶点与法线与 parse 对齐。
+
 下一步：铺其它 fixture 的 dump 金标准；完善 ASCII/binary 解析边界测试，抬升覆盖率。

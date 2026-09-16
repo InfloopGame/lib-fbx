@@ -14,7 +14,7 @@ import {
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { buildScene, parse, FbxAxisUpVector, type FbxNode } from '@infloopgame/lib-fbx'
-import { fbxSceneToThree, type ConvertResult } from './fbx-to-three'
+import { fbxSceneToThree, type ConvertResult } from './fbx-sdk-to-three'
 import { fbxTreeToThree, type TreeConvertResult } from './fbx-tree-to-three'
 import { diffSnapshots, formatDiffs } from './scene-diff'
 import { snapshotScene } from './scene-snapshot'

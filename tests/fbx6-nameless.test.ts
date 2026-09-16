@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parse } from '../src/parse'
 import { buildScene } from '../src/sdk/build-scene'
 import { isFbxClass, isFbxMesh, isFbxSkin } from '../src/sdk/guards'
-import type { FbxMesh, FbxSkin } from '../src/sdk/geometry'
+import { FbxLayerElementMappingMode, type FbxMesh, type FbxSkin } from '../src/sdk/geometry'
 import { buildBinaryFbx } from './helpers/binary-fbx'
 import { SkinnedMesh } from 'three'
 import { fbxSceneToThree } from '../tools/fbx-viewer/src/fbx-to-three'
@@ -341,5 +341,47 @@ Connections:  {
     const rest = bone!.matrixWorld.clone().multiply(inv!)
     expect(rest.elements[13]).toBeCloseTo(0)
     expect(Math.abs(rest.elements[0]! - 1)).toBeLessThan(1e-5)
+  })
+
+  it('6.x ByVertice 法线按控制点取样，与 parse 一致', () => {
+    const ascii = `; FBX 6.1
+FBXHeaderExtension:  {
+	FBXVersion: 6100
+}
+Objects:  {
+	Model: "Model::Face", "Mesh" {
+		Vertices: *9 {
+			a: 0,0,0,1,0,0,0,1,0
+		}
+		PolygonVertexIndex: *3 {
+			a: 1,2,-1
+		}
+		LayerElementNormal: 0 {
+			MappingInformationType: "ByVertice"
+			ReferenceInformationType: "Direct"
+			Normals: *9 {
+				a: 1,0,0,0,1,0,0,0,1
+			}
+		}
+	}
+}
+Connections:  {
+	Connect: "OO", "Face", "Scene"
+}
+`
+    const doc = parse(ascii)
+    const scene = buildScene(doc)
+    const node = scene.rootNode.children.find((n) => n.name === 'Face')
+    const mesh = node?.nodeAttributes.find(isFbxMesh) as FbxMesh | undefined
+    expect(mesh?.layers[0]?.normals?.mappingMode).toBe(FbxLayerElementMappingMode.eByControlPoint)
+
+    const sdk = fbxSceneToThree(scene).meshes[0]
+    const parsed = fbxTreeToThree(doc.tree).meshes[0]
+    const sn = sdk?.geometry.getAttribute('normal')
+    const pn = parsed?.geometry.getAttribute('normal')
+    expect(sn).toBeDefined()
+    expect(pn).toBeDefined()
+    expect([sn!.getX(0), sn!.getY(0), sn!.getZ(0)]).toEqual([0, 1, 0])
+    expect([pn!.getX(0), pn!.getY(0), pn!.getZ(0)]).toEqual([0, 1, 0])
   })
 })

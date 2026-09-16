@@ -819,8 +819,8 @@ function layerElemFrom(
   return {
     type,
     name: str(raw.Name) || undefined,
-    mappingMode: parseMapping(String(raw.MappingInformationType ?? '')),
-    referenceMode: parseReference(String(raw.ReferenceInformationType ?? '')),
+    mappingMode: parseMapping(String(propValue(raw.MappingInformationType) ?? '')),
+    referenceMode: parseReference(String(propValue(raw.ReferenceInformationType) ?? '')),
     directArray: floatArray(raw[directKey]),
     indexArray: indexArray.length > 0 ? indexArray : undefined,
   }
@@ -949,11 +949,14 @@ function typeFromName(type: string): EFbxType {
 }
 
 function parseMapping(s: string): FbxLayerElementMappingMode {
-  if (s === 'ByControlPoint') return FbxLayerElementMappingMode.eByControlPoint
-  if (s === 'ByPolygonVertex') return FbxLayerElementMappingMode.eByPolygonVertex
-  if (s === 'ByPolygon') return FbxLayerElementMappingMode.eByPolygon
-  if (s === 'ByEdge') return FbxLayerElementMappingMode.eByEdge
-  if (s === 'AllSame') return FbxLayerElementMappingMode.eAllSame
+  const k = s.toLowerCase().replace(/[\s_]/g, '')
+  if (k === 'bycontrolpoint' || k === 'byvertice' || k === 'byvertex') {
+    return FbxLayerElementMappingMode.eByControlPoint
+  }
+  if (k === 'bypolygonvertex') return FbxLayerElementMappingMode.eByPolygonVertex
+  if (k === 'bypolygon') return FbxLayerElementMappingMode.eByPolygon
+  if (k === 'byedge') return FbxLayerElementMappingMode.eByEdge
+  if (k === 'allsame') return FbxLayerElementMappingMode.eAllSame
   return FbxLayerElementMappingMode.eNone
 }
 
