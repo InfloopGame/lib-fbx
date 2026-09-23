@@ -5,6 +5,14 @@
 - **SDK**：`buildScene` → `fbxSceneToThree`
 - **parse**：对照 three.js `FBXLoader` 的 `FBXTreeParser`，直接 `tree → Three`（不走 `buildScene`）
 
+两条路径独立读取数据、建立节点和骨骼关系，共用以下 Three 转换模块：
+
+- `src/fbx-transform.ts`：局部变换、旋转顺序和 FBX 矩阵转换。
+- `src/fbx-three-geometry.ts`：统一图层采样、多边形展开、权重归一化、顶点属性和材质分组。
+- `src/fbx-three-common.ts`：Phong 材质创建、蒙皮绑定和统计类型。
+
+SDK 保留子 Mesh 上的几何变换，parse 将几何变换烘焙到顶点和法线；骨骼索引映射和 BindPose 读取仍由各路径负责。公共算法使用固定预期测试验证，不仅依赖两条路径互相比对。
+
 加载后会对两份 `Group` 做快照 diff（名字路径、世界矩阵、顶点数、包围盒、骨骼数）。HUD 可切换 SDK / parse / 对照（parse 洋红线框叠加）。
 
 贴图路径多为 DCC 绝对路径，浏览器里加载不到，目前用漫反射色 / 顶点色。

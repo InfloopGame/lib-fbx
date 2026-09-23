@@ -1,15 +1,12 @@
 import {
   Bone,
-  BufferAttribute,
   BufferGeometry,
   Color,
   DoubleSide,
   Group,
-  Matrix3,
   Matrix4,
   Mesh,
   MeshPhongMaterial,
-  Skeleton,
   SkinnedMesh,
   type Material,
   type Object3D,
@@ -17,6 +14,8 @@ import {
 import type { FbxTreeData } from '@infloopgame/lib-fbx'
 import { objectRef, parseConnRef, refKey, type FbxRef } from '../../../src/parse/object-ref'
 import { fbxMat, generateTransform, getEulerOrder, maybeVec3 } from './fbx-transform.js'
+import { bindSkin, createPhongMaterial, type ConvertStats, type SkinBinding } from './fbx-three-common.js'
+import { buildMeshGeometry, buildSkinInfluences, type LayerData } from './fbx-three-geometry.js'
 
 type Raw = Record<string, unknown>
 
@@ -38,20 +37,11 @@ type SkeletonInfo = {
   bones: Array<Bone | undefined>
 }
 
-type PendingBind = { bones: Bone[]; transformLinks: Array<ArrayLike<number> | undefined> }
-
 export type TreeConvertResult = {
   root: Group
   meshes: Array<Mesh | SkinnedMesh>
   bones: Bone[]
-  stats: {
-    nodes: number
-    meshes: number
-    triangles: number
-    bones: number
-    clusters: number
-    materials: number
-  }
+  stats: ConvertStats
 }
 
 function asRaw(v: unknown): Raw | undefined {
@@ -142,9 +132,7 @@ function relOf(connections: Map<string, Rel>, id: FbxRef): Rel {
   return connections.get(refKey(id)) ?? { parents: [], children: [] }
 }
 
-type LayerPack = { direct: ArrayLike<number>; index?: ArrayLike<number>; comps: number; mapping: string; reference: string }
-
-function packLayer(el: Raw | undefined, directKey: string, indexKey: string, comps: number): LayerPack | null {
+function packLayer(el: Raw | undefined, directKey: string, indexKey: string, comps: number): LayerData | null {
   if (!el) return null
   const direct = floatArray(el[directKey])
   if (direct.length === 0 && comps !== 1) {
@@ -152,92 +140,32 @@ function packLayer(el: Raw | undefined, directKey: string, indexKey: string, com
     if (alt.length === 0 && directKey !== 'Materials') return null
   }
   const index = floatArray(el[indexKey])
+  const rawMapping = String(el.MappingInformationType ?? '')
+  let mapping: LayerData['mapping'] = 'ByPolygonVertex'
+  if (rawMapping === 'ByControlPoint' || rawMapping === 'ByVertice' || rawMapping === 'ByVertex') {
+    mapping = 'ByControlPoint'
+  } else if (rawMapping === 'ByPolygon' || rawMapping === 'AllSame') {
+    mapping = rawMapping
+  }
+  const reference = String(el.ReferenceInformationType ?? '')
   return {
     direct: direct.length ? direct : floatArray(el[directKey]),
     index: index.length ? index : undefined,
     comps,
-    mapping: String(el.MappingInformationType ?? ''),
-    reference: String(el.ReferenceInformationType ?? ''),
+    mapping,
+    indexed: reference === 'IndexToDirect' || reference === 'Index',
   }
-}
-
-function sampleLayer(
-  layer: LayerPack | null,
-  cp: number,
-  pvi: number,
-  poly: number,
-): number[] {
-  if (!layer) return []
-  const { direct, index, comps, mapping, reference } = layer
-  let slot = pvi
-  if (mapping === 'ByControlPoint' || mapping === 'ByVertice' || mapping === 'ByVertex') slot = cp
-  else if (mapping === 'ByPolygon') slot = poly
-  else if (mapping === 'AllSame') slot = 0
-  let di = slot
-  if (reference === 'IndexToDirect' || reference === 'Index') di = Number(index?.[slot] ?? slot)
-  const out: number[] = []
-  for (let c = 0; c < comps; c++) out.push(Number(direct[di * comps + c] ?? 0))
-  return out
-}
-
-function polygons(pvi: ArrayLike<number>): Array<{ cps: number[]; pvis: number[] }> {
-  const out: Array<{ cps: number[]; pvis: number[] }> = []
-  let start = 0
-  for (let i = 0; i < pvi.length; i++) {
-    const v = pvi[i] ?? 0
-    if (v >= 0) continue
-    const cps: number[] = []
-    const pvis: number[] = []
-    for (let j = start; j < i; j++) {
-      cps.push(pvi[j] ?? 0)
-      pvis.push(j)
-    }
-    cps.push(-v - 1)
-    pvis.push(i)
-    if (cps.length >= 3) out.push({ cps, pvis })
-    start = i + 1
-  }
-  return out
-}
-
-function cpInfluences(rawBones: RawBone[], cpCount: number): Array<Array<[number, number]>> {
-  const list: Array<Array<[number, number]>> = Array.from({ length: cpCount }, () => [])
-  rawBones.forEach((bone, bi) => {
-    const n = Math.min(bone.indices.length, bone.weights.length)
-    for (let i = 0; i < n; i++) {
-      const cp = Number(bone.indices[i] ?? 0)
-      const w = Number(bone.weights[i] ?? 0)
-      if (cp < 0 || cp >= cpCount || w === 0) continue
-      list[cp]!.push([bi, w])
-    }
-  })
-  return list.map((inf) => {
-    inf.sort((a, b) => b[1] - a[1])
-    const top = inf.slice(0, 4)
-    const sum = top.reduce((s, [, w]) => s + w, 0) || 1
-    return top.map(([i, w]) => [i, w / sum] as [number, number])
-  })
 }
 
 function parsePhong(raw: Raw, vertexColors: boolean): MeshPhongMaterial {
-  const d = vec3(raw.DiffuseColor) ?? vec3(raw.Diffuse) ?? ([0.75, 0.75, 0.75] as [number, number, number])
-  const spec = vec3(raw.SpecularColor) ?? vec3(raw.Specular) ?? ([0.1, 0.1, 0.1] as [number, number, number])
-  const shininess = num(raw.ShininessExponent, num(raw.Shininess, 16))
-  const opacity = num(raw.TransparencyFactor, 0)
-  const m = new MeshPhongMaterial({
-    color: new Color(d[0], d[1], d[2]),
-    specular: new Color(spec[0], spec[1], spec[2]),
-    shininess,
-    side: DoubleSide,
+  return createPhongMaterial({
+    name: str(raw.attrName) || str(raw.name),
+    diffuse: vec3(raw.DiffuseColor) ?? vec3(raw.Diffuse) ?? [0.75, 0.75, 0.75],
+    specular: vec3(raw.SpecularColor) ?? vec3(raw.Specular) ?? [0.1, 0.1, 0.1],
+    shininess: num(raw.ShininessExponent, num(raw.Shininess, 16)),
+    transparency: num(raw.TransparencyFactor, 0),
     vertexColors,
   })
-  const matName = str(raw.attrName) || str(raw.name)
-  if (matName) m.name = matName
-  if (opacity > 0 && opacity < 1) {
-    m.transparent = true
-    m.opacity = 1 - opacity
-  }
-  return m
 }
 
 function parseMaterials(tree: FbxTreeData): Map<string, MeshPhongMaterial> {
@@ -320,7 +248,6 @@ function buildGeometry(
   const pvi = floatArray(geoNode.PolygonVertexIndex)
   const cpCount = Math.floor(cps.length / 3)
   if (cpCount === 0) return null
-  const polys = polygons(pvi)
   const nrmEl = collectValues(geoNode.LayerElementNormal)[0]
   const uvEls = collectValues(geoNode.LayerElementUV)
   const colEl = collectValues(geoNode.LayerElementColor)[0]
@@ -330,82 +257,23 @@ function buildGeometry(
   const uv2 = packLayer(uvEls[1], 'UV', 'UVIndex', 2)
   const colors = packLayer(colEl, 'Colors', 'ColorIndex', 4)
   const mats = packLayer(matEl, 'Materials', 'Materials', 1)
-  const infl =
-    skeleton && skeleton.rawBones.length > 0 ? cpInfluences(skeleton.rawBones, cpCount) : null
-
-  const pos: number[] = []
-  const nrm: number[] = []
-  const uv: number[] = []
-  const uvB: number[] = []
-  const col: number[] = []
-  const sidx: number[] = []
-  const sw: number[] = []
-  const groups: Array<{ start: number; count: number; materialIndex: number }> = []
-  let cursor = 0
-  let currentMat = 0
-  let groupStart = 0
-  const flush = () => {
-    const count = cursor - groupStart
-    if (count > 0) groups.push({ start: groupStart, count, materialIndex: currentMat })
-    groupStart = cursor
-  }
-
-  for (let pi = 0; pi < polys.length; pi++) {
-    const poly = polys[pi]!
-    const matIndex = Number(sampleLayer(mats, poly.cps[0] ?? 0, poly.pvis[0] ?? 0, pi)[0] ?? 0)
-    if (matIndex !== currentMat && cursor > 0) {
-      flush()
-      currentMat = matIndex
-    } else {
-      currentMat = matIndex
-    }
-    for (let k = 1; k + 1 < poly.cps.length; k++) {
-      for (const c of [0, k, k + 1]) {
-        const cp = poly.cps[c] ?? 0
-        const pv = poly.pvis[c] ?? 0
-        pos.push(cps[cp * 3] ?? 0, cps[cp * 3 + 1] ?? 0, cps[cp * 3 + 2] ?? 0)
-        const n = sampleLayer(normals, cp, pv, pi)
-        if (n.length >= 3) nrm.push(n[0]!, n[1]!, n[2]!)
-        const u = sampleLayer(uvs, cp, pv, pi)
-        if (u.length >= 2) uv.push(u[0]!, u[1]!)
-        const u2 = sampleLayer(uv2, cp, pv, pi)
-        if (u2.length >= 2) uvB.push(u2[0]!, u2[1]!)
-        const vc = sampleLayer(colors, cp, pv, pi)
-        if (vc.length >= 3) col.push(vc[0]!, vc[1]!, vc[2]!)
-        if (infl) {
-          const inf = infl[cp] ?? []
-          sidx.push(inf[0]?.[0] ?? 0, inf[1]?.[0] ?? 0, inf[2]?.[0] ?? 0, inf[3]?.[0] ?? 0)
-          if (inf.length === 0) sw.push(1, 0, 0, 0)
-          else sw.push(inf[0]?.[1] ?? 0, inf[1]?.[1] ?? 0, inf[2]?.[1] ?? 0, inf[3]?.[1] ?? 0)
-        }
-        cursor++
-      }
-    }
-  }
-  flush()
-  if (pos.length === 0) return null
-
-  const geo = new BufferGeometry()
+  const infl = skeleton && skeleton.rawBones.length > 0
+    ? buildSkinInfluences(skeleton.rawBones.map((bone, boneIndex) => ({
+      boneIndex, indices: bone.indices, weights: bone.weights,
+    })), cpCount)
+    : null
+  const geo = buildMeshGeometry({
+    controlPoints: cps,
+    polygonIndexes: pvi,
+    normals,
+    uvs,
+    uv2,
+    colors,
+    materials: mats,
+    influences: infl,
+  }, geometricMatrix(model))
+  if (!geo) return null
   if (geoNode.attrName) geo.name = String(geoNode.attrName)
-  geo.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3))
-  const pre = geometricMatrix(model)
-  const posAttr = geo.getAttribute('position')
-  posAttr.applyMatrix4(pre)
-  if (nrm.length === pos.length) {
-    const nAttr = new BufferAttribute(new Float32Array(nrm), 3)
-    nAttr.applyNormalMatrix(new Matrix3().getNormalMatrix(pre))
-    geo.setAttribute('normal', nAttr)
-  } else {
-    geo.computeVertexNormals()
-  }
-  if (uv.length * 3 === pos.length * 2) geo.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2))
-  if (uvB.length * 3 === pos.length * 2) geo.setAttribute('uv2', new BufferAttribute(new Float32Array(uvB), 2))
-  if (col.length === pos.length) geo.setAttribute('color', new BufferAttribute(new Float32Array(col), 3))
-  if (sidx.length) {
-    geo.setAttribute('skinIndex', new BufferAttribute(new Uint16Array(sidx), 4))
-    geo.setAttribute('skinWeight', new BufferAttribute(new Float32Array(sw), 4))
-  }
-  for (const g of groups) geo.addGroup(g.start, g.count, g.materialIndex)
   return { geo, skinned: Boolean(infl && infl.length > 0) }
 }
 
@@ -458,24 +326,24 @@ function applyLocal(obj: Object3D, node: Raw, parent: Object3D): void {
   if (typeof vis === 'number') obj.visible = vis > 1e-6
 }
 
-function findBoneForCluster(
+function findBoneForClusters(
   skeletons: Record<string, SkeletonInfo>,
-  clusterId: FbxRef,
+  parents: Conn[],
   modelId: FbxRef,
   name: string,
 ): Bone | null {
+  const clusterIds = new Set(parents.map((parent) => refKey(parent.id)))
   let bone: Bone | null = null
   for (const skel of Object.values(skeletons)) {
     for (let i = 0; i < skel.rawBones.length; i++) {
-      if (refKey(skel.rawBones[i]!.id) !== refKey(clusterId)) continue
-      const existing = bone
-      bone = new Bone()
-      bone.name = name
-      ;(bone as Bone & { userData: { fbxId: FbxRef } }).userData.fbxId = modelId
-      const link = skel.rawBones[i]!.transformLink
-      if (link) bone.matrixWorld.copy(fbxMat(link))
+      if (!clusterIds.has(refKey(skel.rawBones[i]!.id))) continue
+      // One scene bone per Model; each skin keeps its own inverse bind matrix.
+      if (!bone) {
+        bone = new Bone()
+        bone.name = name
+        bone.userData.fbxId = modelId
+      }
       skel.bones[i] = bone
-      if (existing) bone.add(existing)
     }
   }
   return bone
@@ -499,12 +367,7 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
     if (id === undefined) continue
     const name = str(node.attrName) || str(node.name)
     const rel = relOf(connections, id)
-    let obj: Object3D | null = null
-
-    for (const parent of rel.parents) {
-      const found = findBoneForCluster(skeletons, parent.id, id, name)
-      if (found) obj = found
-    }
+    let obj: Object3D | null = findBoneForClusters(skeletons, rel.parents, id, name)
 
     if (!obj) {
       const attr = String(node.attrType ?? '')
@@ -612,23 +475,18 @@ export function fbxTreeToThree(tree: FbxTreeData): TreeConvertResult {
       links.push(raw.transformLink)
     })
     if (boneList.length) {
-      mesh.userData.fbxSkinBind = { bones: boneList, transformLinks: links } satisfies PendingBind
+      mesh.userData.fbxSkinBind = { bones: boneList, transformLinks: links } satisfies SkinBinding
       clusterCount += skeleton.rawBones.length
     }
   }
   for (const mesh of meshes) {
     if (!(mesh instanceof SkinnedMesh)) continue
-    const pending = mesh.userData.fbxSkinBind as PendingBind | undefined
-    mesh.updateMatrixWorld(true)
+    const pending = mesh.userData.fbxSkinBind as SkinBinding | undefined
     if (!pending || pending.bones.length === 0) {
-      mesh.bind(new Skeleton([]), mesh.matrixWorld)
+      bindSkin(mesh, { bones: [], transformLinks: [] })
       continue
     }
-    const inverses = pending.bones.map((bone, i) => {
-      const link = pending.transformLinks[i]
-      return link ? fbxMat(link).invert() : bone.matrixWorld.clone().invert()
-    })
-    mesh.bind(new Skeleton(pending.bones, inverses), mesh.matrixWorld)
+    bindSkin(mesh, pending)
     delete mesh.userData.fbxSkinBind
   }
 

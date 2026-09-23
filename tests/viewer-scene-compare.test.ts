@@ -1,10 +1,10 @@
-import { BufferAttribute, BufferGeometry, Group, Mesh } from 'three'
+import { Bone, BufferAttribute, BufferGeometry, Group, Mesh, SkinnedMesh, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { parse } from '../src/parse'
 import { buildScene } from '../src/sdk/build-scene'
 import { loadFixture, loadFixtureText } from './helpers/load-fixture'
 import { diffSnapshots } from '../tools/fbx-viewer/src/scene-diff'
-import { fbxSceneToThree } from '../tools/fbx-viewer/src/fbx-to-three'
+import { fbxSceneToThree } from '../tools/fbx-viewer/src/fbx-sdk-to-three'
 import { fbxTreeToThree } from '../tools/fbx-viewer/src/fbx-tree-to-three'
 import { snapshotScene } from '../tools/fbx-viewer/src/scene-snapshot'
 
@@ -101,6 +101,60 @@ describe('fbxTreeToThree', () => {
     expect(triNode?.world[12]).toBeCloseTo(1)
     expect(triNode?.world[13]).toBeCloseTo(2)
     expect(triNode?.world[14]).toBeCloseTo(3)
+  })
+
+  it.each([1, 2])('keeps bones shared by multiple skins in the scene (UpAxis=%i)', (upAxis) => {
+    const property = (value: unknown) => ({ type: 'Vector3D', value })
+    const triangle = {
+      attrType: 'Mesh',
+      Vertices: { a: new Float64Array([0, 0, 0, 1, 0, 0, 0, 1, 0]) },
+      PolygonVertexIndex: { a: new Float64Array([0, 1, -3]) },
+    }
+    const cluster = {
+      attrType: 'Cluster',
+      Indexes: { a: new Float64Array([0, 1, 2]) },
+      Weights: { a: new Float64Array([1, 1, 1]) },
+      TransformLink: { a: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1]) },
+    }
+    const result = fbxTreeToThree({
+      GlobalSettings: { UpAxis: property(upAxis) },
+      Objects: {
+        Model: {
+          1: { id: 1, attrName: 'SharedBone', attrType: 'LimbNode', Lcl_Translation: property([5, 0, 0]) },
+          2: { id: 2, attrName: 'MeshA', attrType: 'Mesh' },
+          3: { id: 3, attrName: 'MeshB', attrType: 'Mesh' },
+        },
+        Geometry: { 10: { id: 10, ...triangle }, 11: { id: 11, ...triangle } },
+        Deformer: {
+          20: { id: 20, attrType: 'Skin' },
+          21: { id: 21, attrType: 'Skin' },
+          30: { id: 30, ...cluster },
+          31: { id: 31, ...cluster },
+        },
+      },
+      Connections: {
+        connections: [[10, 2], [11, 3], [20, 10], [21, 11], [30, 20], [31, 21], [1, 30], [1, 31]],
+      },
+    })
+    const [a, b] = result.meshes as SkinnedMesh[]
+    expect(a).toBeInstanceOf(SkinnedMesh)
+    expect(b).toBeInstanceOf(SkinnedMesh)
+    const bone = a!.skeleton.bones[0]!
+    expect(bone).toBe(b!.skeleton.bones[0])
+    expect(bone.parent).toBe(result.root)
+    const sceneBones: Bone[] = []
+    result.root.traverse((obj) => { if (obj instanceof Bone) sceneBones.push(obj) })
+    expect(sceneBones).toEqual([bone])
+
+    const worldVertex = (mesh: SkinnedMesh, index: number) =>
+      mesh.getVertexPosition(index, new Vector3()).applyMatrix4(mesh.matrixWorld)
+    const before = worldVertex(a!, 0)
+    bone.position.y += 3
+    result.root.updateMatrixWorld(true)
+    for (let i = 0; i < 3; i++) {
+      expect(worldVertex(a!, i).distanceTo(worldVertex(b!, i))).toBeLessThan(1e-6)
+    }
+    expect(worldVertex(a!, 0).distanceTo(before)).toBeCloseTo(3)
   })
 })
 

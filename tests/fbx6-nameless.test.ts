@@ -5,7 +5,7 @@ import { isFbxClass, isFbxMesh, isFbxSkin } from '../src/sdk/guards'
 import { FbxLayerElementMappingMode, type FbxMesh, type FbxSkin } from '../src/sdk/geometry'
 import { buildBinaryFbx } from './helpers/binary-fbx'
 import { SkinnedMesh } from 'three'
-import { fbxSceneToThree } from '../tools/fbx-viewer/src/fbx-to-three'
+import { fbxSceneToThree } from '../tools/fbx-viewer/src/fbx-sdk-to-three'
 import { fbxTreeToThree } from '../tools/fbx-viewer/src/fbx-tree-to-three'
 import { snapshotScene } from '../tools/fbx-viewer/src/scene-snapshot'
 
