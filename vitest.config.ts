@@ -17,6 +17,8 @@ export default defineConfig({
       reporter: ['text', 'json-summary', 'html', 'lcov'],
       include: ['src/**/*.ts'],
       exclude: [
+        // 未锚定的 glob 会把 tools/fbx-viewer/src 也算进来；viewer 是对照工具，不随包发布。
+        'tools/**',
         'src/types.ts',
         'src/sdk/math.ts',
         'src/sdk/core.ts',
