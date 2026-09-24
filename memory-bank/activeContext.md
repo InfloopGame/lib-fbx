@@ -1,6 +1,6 @@
 # Active Context
 
-包名 `@infloopgame/lib-fbx`。Trusted Publisher 已绑定。0.1.0 已上架；0.1.1 为使用向 README（含 Three.js 示例），走 `npm stage publish`。仓库私有，已关掉 provenance。
+包名 `@infloopgame/lib-fbx`。Trusted Publisher 已绑定。0.1.2 已上架（push `v*` tag → CI stage publish → 维护者 npmjs.com 2FA 批准；发版要同步 `src/util.ts` 的 `version` 常量，`tests/index.test.ts` 会校验）。coverage include 的 `src/**/*.ts` 是未锚定 glob，会把 `tools/fbx-viewer/src` 也算进来，已在 vitest.config.ts exclude `tools/**`。仓库私有，已关掉 provenance。下游 xfileviewer 用 `^0.1.2`。
 
 已加入与 FBX SDK 2020.2.1 对齐的 TypeScript 场景对象层（`src/sdk/`）。parse 结果从 `FbxDocument` 改名为 `FbxParseResult`，把 `FbxDocument` / `FbxScene` / `FbxNode` 留给 SDK 类型。`buildScene(tree | FbxParseResult)` 把 parse tree 组装成 `FbxScene`。
 
