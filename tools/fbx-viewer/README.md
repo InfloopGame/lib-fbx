@@ -19,6 +19,14 @@ SDK 保留子 Mesh 上的几何变换，parse 将几何变换烘焙到顶点和�
 
 蒙皮绑定对齐 three.js r184：先应用 Lcl，再 `boneInverse = Inverse(TransformLink)`，`bind(skeleton, mesh.matrixWorld)`，不用 Cluster.Transform。
 
+### FBX 6.x 兼容性
+
+FBX 6.1 的节点、Skin/Cluster 连接和 BindPose 引用可能使用名称，而非数字 UniqueId。示例沿用 `FbxRef`、`objectRef`、`parseConnRef` 和 `refKey` 统一查找，保留原始名称与数字 ID，不对名称调用 `parseInt`，也不修改原始树做数字重编号。未连接到父节点的 Skin 会在建立骨架前跳过，避免干扰有效网格的分类。
+
+`tests/viewer-legacy-skinning.test.ts` 使用从 Avatar 示例同步的 `legacy-skinned-triangle.fbx`，覆盖 SDK / parse 两条路径的混合 ID、名称 BindPose、类型化权重、克隆后的独立蒙皮及孤立 Skin。Viewer 不缓存解析失败，失败后可重新加载文件。
+
+### 启动
+
 ```bash
 pnpm viewer
 ```

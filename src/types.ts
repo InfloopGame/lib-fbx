@@ -219,7 +219,7 @@ export interface FbxPoseNode {
 }
 
 export interface FbxPoseEntry {
-  Node: number
+  Node: FbxObjectId
   Matrix?: { a?: Float64Array; propertyList?: ArrayLike<number> }
 }
 

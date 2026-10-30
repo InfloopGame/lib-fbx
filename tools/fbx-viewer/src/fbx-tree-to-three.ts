@@ -186,6 +186,9 @@ function parseSkeletons(tree: FbxTreeData, connections: Map<string, Rel>): Recor
     const id = objectRef(raw, key)
     if (id === undefined) continue
     const rel = relOf(connections, id)
+    // Unused exporter skins must not turn their linked Models into scene bones.
+    const geometryId = rel.parents[0]?.id
+    if (geometryId === undefined) continue
     const rawBones: RawBone[] = []
     for (const child of rel.children) {
       const node = deformers[refKey(child.id)]
@@ -200,7 +203,7 @@ function parseSkeletons(tree: FbxTreeData, connections: Map<string, Rel>): Recor
     }
     out[refKey(id)] = {
       id,
-      geometryId: rel.parents[0]?.id ?? -1,
+      geometryId,
       rawBones,
       bones: [],
     }
