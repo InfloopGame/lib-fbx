@@ -10,7 +10,7 @@
 - Benchmark：`scripts/fbx-benchmark.ts`，`pnpm bench -- <dir>` 递归扫 `.fbx`，分别统计 `parse()` 与 `buildScene()` 中位数耗时。
 - 单文件摘要：`pnpm exec tsx scripts/inspect-fbx.ts <file.fbx>`（parse + buildScene + Objects/连接/网格统计）。
 - 对象引用：`src/parse/object-ref.ts`。7.x `[id, name, type]` 用数字 ID；6.x `[name, type]` 用名字做 key / Connect。`Scene` / `RootNode` / `0` 是根。几何节点首项是 float 或一串数字时不当 UniqueId。
-- 官方 SDK 金标准：`tools/fbx-dump/fbx-dump.exe` 导出 JSON scene。Three.js 查看器：`tools/fbx-viewer/`（`pnpm viewer`），`parse` 后分 SDK / parse 两条转 Three，并用 `snapshotScene` + `diffSnapshots` 对照。节点局部矩阵对齐 three.js FBXLoader：`getEulerOrder`（FBX 外旋→内旋）+ `generateTransform`（pivot / inheritType）。蒙皮 `boneInverse = Inverse(TransformLink)`，`mesh.bind(skeleton, mesh.matrixWorld)`。右侧 Outliner 走 `FbxScene.rootNode`，`fbxSceneToThree` 导出 `nodeMap` 做点选高亮。
+- 官方 SDK 金标准：`tools/fbx-dump/fbx-dump.exe` 导出 JSON scene。Three.js 查看器：`tools/fbx-viewer/`（`pnpm viewer`），`parse` 后分 SDK / parse 两条转 Three，并用 `snapshotScene` + `diffSnapshots` 对照。节点局部矩阵对齐 three.js FBXLoader：`getEulerOrder`（FBX 外旋→内旋）+ `generateTransform`（pivot / inheritType）。蒙皮 `boneInverse = Inverse(TransformLink)`，`mesh.bind(skeleton, mesh.matrixWorld)`。右侧大纲走 `FbxScene.rootNode`（FBX 节点，不是 Three 场景图）。用户属性是 Properties70 里标志含 `U` 的项，`buildScene` 写入 `properties` 并置 `eUserDefined`。`nodeMap` 只用于点选高亮和视口显隐。
 - 发布：tag `v*` → `.github/workflows/publish.yml` 用 OIDC 跑 `npm stage publish`，维护者 2FA `npm stage approve`。
 
 ## 数字数组类型

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parse } from '../../src/parse'
-import { EFbxType } from '../../src/sdk/core'
+import { EFbxType, FbxPropertyFlags } from '../../src/sdk/core'
 import {
   FbxDeformerType,
   FbxLayerElementMappingMode,
@@ -24,6 +24,35 @@ import type { FbxTreeData } from '../../src/types'
 import { loadFixture, loadFixtureText } from '../helpers/load-fixture'
 
 describe('buildScene', () => {
+  it('把标志 U 的属性记成用户属性', () => {
+    const scene = buildScene({
+      Objects: {
+        Model: {
+          1: {
+            id: 1,
+            attrName: 'Body',
+            attrType: 'Mesh',
+            Lcl_Translation: { type: 'Lcl Translation', flag: 'A+', value: [1, 2, 3] },
+            MyNote: { type: 'KString', flag: 'U', value: 'hello' },
+            HiddenColor: { type: 'Color', flag: 'UH', value: [1, 0, 0] },
+          },
+        },
+      },
+      Connections: { connections: [[1, 0]] },
+    } as unknown as FbxTreeData)
+    const node = scene.rootNode.children[0]
+    expect(node?.name).toBe('Body')
+    const note = node?.properties.find((p) => p.name === 'MyNote')
+    const color = node?.properties.find((p) => p.name === 'HiddenColor')
+    expect(note?.value).toBe('hello')
+    expect(note?.flags & FbxPropertyFlags.eUserDefined).toBeTruthy()
+    expect(color?.flags & FbxPropertyFlags.eUserDefined).toBeTruthy()
+    expect(color?.flags & FbxPropertyFlags.eHidden).toBeTruthy()
+    expect(color?.value).toEqual([1, 0, 0])
+    expect(node?.lclTranslation?.flags & FbxPropertyFlags.eAnimatable).toBeTruthy()
+    expect(node?.lclTranslation?.flags & FbxPropertyFlags.eUserDefined).toBeFalsy()
+  })
+
   it('从空 tree 得到带 RootNode 的 Scene', () => {
     const scene = buildScene({})
     expect(isFbxScene(scene)).toBe(true)

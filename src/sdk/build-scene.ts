@@ -889,7 +889,7 @@ function applyNamedProps(target: FbxNode, raw: Raw): void {
 function makeProp<T extends FbxPropertyData>(name: string, raw: unknown): FbxProperty<T> | undefined {
   if (raw === undefined || raw === null) return undefined
   const pv = isPropValue(raw) ? raw : { type: '', value: raw }
-  const flags = String(pv.flag ?? '').includes('A') ? FbxPropertyFlags.eAnimatable : FbxPropertyFlags.eNone
+  const flags = flagsFromFile(pv.flag)
   return {
     name,
     dataType: typeFromName(String(pv.type ?? name)),
@@ -935,6 +935,16 @@ function convertValue(value: unknown, type: string): FbxPropertyData {
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') return value
   if (Array.isArray(value) && value.length >= 3) return asDouble3(value) ?? 0
   return value as FbxPropertyData
+}
+
+/** 文件里的标志串：A 可动画，U 用户属性，H 隐藏。`A+U` 这类写法都认。 */
+function flagsFromFile(flag: string | undefined): number {
+  const text = String(flag ?? '')
+  let flags = FbxPropertyFlags.eNone
+  if (text.includes('A')) flags |= FbxPropertyFlags.eAnimatable
+  if (text.includes('U')) flags |= FbxPropertyFlags.eUserDefined
+  if (text.includes('H')) flags |= FbxPropertyFlags.eHidden
+  return flags
 }
 
 function typeFromName(type: string): EFbxType {

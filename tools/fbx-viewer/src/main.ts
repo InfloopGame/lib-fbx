@@ -28,6 +28,8 @@ const skelBox = document.querySelector('#skel') as HTMLInputElement
 const gridBox = document.querySelector('#grid') as HTMLInputElement
 const diffEl = document.querySelector('#diff') as HTMLPreElement
 const outliner = document.querySelector('#outliner') as HTMLElement
+const treeBox = document.querySelector('#tree') as HTMLInputElement
+const outlinerShow = document.querySelector('#outliner-show') as HTMLButtonElement
 const pathInputs = [...document.querySelectorAll<HTMLInputElement>('input[name="path"]')]
 
 const renderer = new WebGLRenderer({ antialias: true, alpha: false })
@@ -62,11 +64,28 @@ function selectedPath(): 'sdk' | 'parse' | 'both' {
   return (pathInputs.find((el) => el.checked)?.value as 'sdk' | 'parse' | 'both') ?? 'sdk'
 }
 
+function setTreeOpen(open: boolean): void {
+  treeBox.checked = open
+  outliner.classList.toggle('is-collapsed', !open)
+  outlinerShow.hidden = open
+  outlinerShow.setAttribute('aria-expanded', String(open))
+}
+
 const tree = mountSceneTree(outliner, {
-  onSelect(node: FbxNode) {
-    highlightNode(node)
+  onSelect(node) {
+    if (node) highlightNode(node)
+    else clearSelectHelper()
+  },
+  objectFor(node) {
+    return sdkLoaded?.nodeMap.get(node) ?? null
+  },
+  onHide() {
+    setTreeOpen(false)
   },
 })
+
+treeBox.addEventListener('change', () => setTreeOpen(treeBox.checked))
+outlinerShow.addEventListener('click', () => setTreeOpen(true))
 
 function clearSelectHelper(): void {
   if (!selectHelper) return

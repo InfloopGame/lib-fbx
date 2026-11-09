@@ -18,6 +18,7 @@
       <label class="check"><input id="wire" type="checkbox" /> 线框</label>
       <label class="check"><input id="skel" type="checkbox" /> 骨骼</label>
       <label class="check"><input id="grid" type="checkbox" checked /> 网格</label>
+      <label class="check"><input id="tree" type="checkbox" checked /> 大纲</label>
       <div class="paths" role="radiogroup" aria-label="解析路径">
         <label class="check"><input type="radio" name="path" value="sdk" checked /> SDK</label>
         <label class="check"><input type="radio" name="path" value="parse" /> parse</label>
@@ -26,6 +27,7 @@
       <pre id="stat">拖入或选择 .fbx</pre>
       <pre id="diff" hidden></pre>
     </div>
+    <button id="outliner-show" type="button" hidden>大纲</button>
     <aside id="outliner"></aside>
     <script type="module" src="/src/main.ts"></script>
   </body>

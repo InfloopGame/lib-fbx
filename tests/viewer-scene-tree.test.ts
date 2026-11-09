@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { parse } from '../src/parse'
 import { buildScene } from '../src/sdk/build-scene'
 import type { FbxNode, FbxNodeAttribute } from '../src/sdk'
+import { FbxPropertyFlags, type FbxProperty } from '../src/sdk'
 import {
   countSubtree,
   displayName,
+  fbxTypeLabel,
   isExpandedByDefault,
   nodeKind,
+  parseUdpEntries,
+  userProperties,
 } from '../tools/fbx-viewer/src/scene-tree-model'
 
 function stubAttr(classId: FbxNodeAttribute['classId']): FbxNodeAttribute {
@@ -49,6 +53,44 @@ describe('nodeKind', () => {
     expect(nodeKind(stubNode('nurbs', [stubAttr('FbxNurbs')]))).toBe('Node')
   })
 })
+
+describe('fbxTypeLabel', () => {
+  it('uses attribute class ids, or FbxNode when there is none', () => {
+    expect(fbxTypeLabel(stubNode('a', [stubAttr('FbxMesh')]))).toBe('FbxMesh')
+    expect(fbxTypeLabel(stubNode('a', [stubAttr('FbxSkeleton'), stubAttr('FbxNull')]))).toBe('FbxSkeleton, FbxNull')
+    expect(fbxTypeLabel(stubNode('empty'))).toBe('FbxNode')
+  })
+})
+
+describe('userProperties', () => {
+  it('returns only properties flagged as user-defined', () => {
+    const note = prop('Note', 'hi', FbxPropertyFlags.eUserDefined)
+    const lcl = prop('Lcl Translation', [0, 0, 0], FbxPropertyFlags.eAnimatable)
+    const node = stubNode('a')
+    node.properties = [lcl, note]
+    expect(userProperties(node)).toEqual([note])
+  })
+})
+
+describe('parseUdpEntries', () => {
+  it('splits a 3ds Max UDP string into name and value', () => {
+    expect(parseUdpEntries('MapChannel:1 = UVChannel_1&cr;&lf;')).toEqual([
+      { name: 'MapChannel:1', value: 'UVChannel_1' },
+    ])
+    expect(parseUdpEntries('a = 1&cr;&lf;b = two&quot;x&quot;')).toEqual([
+      { name: 'a', value: '1' },
+      { name: 'b', value: 'two"x"' },
+    ])
+  })
+
+  it('returns null when a line is not name = value', () => {
+    expect(parseUdpEntries('just a note')).toBeNull()
+  })
+})
+
+function prop(name: string, value: FbxProperty['value'], flags: number): FbxProperty {
+  return { name, dataType: 18, flags, value }
+}
 
 describe('displayName', () => {
   it('uses the node name, or (unnamed) when blank', () => {
