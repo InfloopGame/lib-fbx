@@ -3,32 +3,98 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>lib-fbx viewer</title>
+    <title>FBXView</title>
   </head>
   <body>
-    <div id="hud">
-      <header>
-        <strong>lib-fbx</strong>
-        <span>Three.js viewer</span>
+    <div id="app" data-hier="on" data-insp="on" data-bottom="on">
+      <header id="toolbar">
+        <div class="toolbar-group" role="group" aria-label="播放控制">
+          <button id="play" type="button" class="tool-btn" disabled title="动画求值尚未实现" aria-label="播放">
+            <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+          </button>
+          <button id="pause" type="button" class="tool-btn" disabled title="动画求值尚未实现" aria-label="暂停">
+            <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z" /></svg>
+          </button>
+          <button id="step" type="button" class="tool-btn" disabled title="动画求值尚未实现" aria-label="单步">
+            <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M6 5v14l8-7zm10 0h3v14h-3z" /></svg>
+          </button>
+        </div>
+        <span class="toolbar-sep" aria-hidden="true"></span>
+        <label class="tool-btn file-btn" title="打开 FBX">
+          打开
+          <input id="file" type="file" accept=".fbx,application/octet-stream" />
+        </label>
+        <div class="toolbar-group" role="group" aria-label="视口显示">
+          <button id="wire" type="button" class="tool-btn" aria-pressed="false" title="线框">线框</button>
+          <button id="skel" type="button" class="tool-btn" aria-pressed="false" title="骨骼">骨骼</button>
+          <button id="grid" type="button" class="tool-btn is-on" aria-pressed="true" title="网格">网格</button>
+          <button id="frame" type="button" class="tool-btn" title="聚焦选中对象，没有选中则框住整个场景">聚焦</button>
+        </div>
+        <div class="toolbar-group" role="group" aria-label="层级">
+          <button id="expand" type="button" class="tool-btn" title="展开全部">展开</button>
+          <button id="collapse" type="button" class="tool-btn" title="收起全部">收起</button>
+        </div>
+        <div class="toolbar-group" role="radiogroup" aria-label="解析路径">
+          <button id="path-sdk" type="button" class="tool-btn is-on" data-path="sdk" aria-pressed="true">SDK</button>
+          <button id="path-parse" type="button" class="tool-btn" data-path="parse" aria-pressed="false">parse</button>
+          <button id="path-both" type="button" class="tool-btn" data-path="both" aria-pressed="false" title="SDK 实体，parse 洋红线框叠加">对照</button>
+        </div>
+        <div id="toolbar-status" class="toolbar-status">拖入或选择 .fbx</div>
+        <div class="toolbar-search">
+          <input id="search" class="toolbar-search-input" type="text" placeholder="搜索名称 / 类型 / ID" aria-label="搜索场景节点" />
+          <span id="search-count" class="toolbar-match-count">0/0</span>
+          <button id="search-prev" type="button" class="tool-btn" title="上一个匹配" aria-label="上一个匹配" disabled>
+            <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="m6 14 6-6 6 6" /></svg>
+          </button>
+          <button id="search-next" type="button" class="tool-btn" title="下一个匹配" aria-label="下一个匹配" disabled>
+            <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="m6 10 6 6 6-6" /></svg>
+          </button>
+        </div>
+        <div class="toolbar-group" role="group" aria-label="面板">
+          <button id="toggle-hier" type="button" class="tool-btn is-on" aria-pressed="true" title="Hierarchy">层级</button>
+          <button id="toggle-insp" type="button" class="tool-btn is-on" aria-pressed="true" title="Inspector">检查</button>
+          <button id="toggle-console" type="button" class="tool-btn is-on" aria-pressed="true" title="Console">控制台</button>
+          <button id="toggle-project" type="button" class="tool-btn" aria-pressed="false" title="Project">项目</button>
+        </div>
+        <label class="toolbar-select">
+          <span>布局</span>
+          <select id="layout" aria-label="布局">
+            <option value="default">Default</option>
+            <option value="tall">Tall</option>
+            <option value="wide">Wide</option>
+            <option value="full">Viewport</option>
+          </select>
+        </label>
       </header>
-      <label class="file">
-        打开 FBX
-        <input id="file" type="file" accept=".fbx,application/octet-stream" />
-      </label>
-      <label class="check"><input id="wire" type="checkbox" /> 线框</label>
-      <label class="check"><input id="skel" type="checkbox" /> 骨骼</label>
-      <label class="check"><input id="grid" type="checkbox" checked /> 网格</label>
-      <label class="check"><input id="tree" type="checkbox" checked /> 大纲</label>
-      <div class="paths" role="radiogroup" aria-label="解析路径">
-        <label class="check"><input type="radio" name="path" value="sdk" checked /> SDK</label>
-        <label class="check"><input type="radio" name="path" value="parse" /> parse</label>
-        <label class="check"><input type="radio" name="path" value="both" /> 对照</label>
+      <div id="dock">
+        <aside id="hierarchy" class="panel">
+          <div class="panel-tabs" role="tablist" aria-label="左侧面板">
+            <button type="button" class="tab is-active" role="tab" aria-selected="true">Hierarchy</button>
+          </div>
+          <div id="hierarchy-body" class="panel-body"></div>
+        </aside>
+        <div id="split-left" class="splitter" role="separator" aria-orientation="vertical" aria-label="调整层级宽度" tabindex="0"></div>
+        <main id="viewport" class="viewport">
+          <div id="hud" class="hud">将 .fbx 拖入视口</div>
+        </main>
+        <div id="split-right" class="splitter" role="separator" aria-orientation="vertical" aria-label="调整检查器宽度" tabindex="0"></div>
+        <aside id="inspector" class="panel">
+          <div class="panel-tabs" role="tablist" aria-label="右侧面板">
+            <button type="button" class="tab is-active" role="tab" aria-selected="true">Inspector</button>
+          </div>
+          <div id="inspector-body" class="panel-body"></div>
+        </aside>
       </div>
-      <pre id="stat">拖入或选择 .fbx</pre>
-      <pre id="diff" hidden></pre>
+      <div id="split-bottom" class="splitter splitter-h" role="separator" aria-orientation="horizontal" aria-label="调整底栏高度" tabindex="0"></div>
+      <footer id="bottom" class="panel">
+        <div class="panel-tabs" role="tablist" aria-label="底部面板">
+          <button id="tab-console" type="button" class="tab is-active" role="tab" aria-selected="true" aria-controls="console">Console</button>
+          <button id="tab-project" type="button" class="tab" role="tab" aria-selected="false" aria-controls="project">Project</button>
+        </div>
+        <div id="console" class="panel-body console" role="tabpanel"></div>
+        <div id="project" class="panel-body project" role="tabpanel" hidden></div>
+      </footer>
     </div>
-    <button id="outliner-show" type="button" hidden>大纲</button>
-    <aside id="outliner"></aside>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

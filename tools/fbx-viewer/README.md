@@ -13,7 +13,7 @@
 
 SDK 保留子 Mesh 上的几何变换，parse 将几何变换烘焙到顶点和法线；骨骼索引映射和 BindPose 读取仍由各路径负责。公共算法使用固定预期测试验证，不仅依赖两条路径互相比对。
 
-加载后会对两份 `Group` 做快照 diff（名字路径、世界矩阵、顶点数、包围盒、骨骼数）。HUD 可切换 SDK / parse / 对照（parse 洋红线框叠加）。
+加载后会对两份 `Group` 做快照 diff（名字路径、世界矩阵、顶点数、包围盒、骨骼数）。界面是 Unity 深色工作台：顶栏切 SDK / parse / 对照（parse 洋红线框叠加），左侧 Hierarchy，右侧 Inspector，底部 Console / Project。视口左上角是状态徽章。
 
 贴图路径多为 DCC 绝对路径，浏览器里加载不到，目前用漫反射色 / 顶点色。
 
@@ -31,4 +31,4 @@ FBX 6.1 的节点、Skin/Cluster 连接和 BindPose 引用可能使用名称，�
 pnpm viewer
 ```
 
-打开 http://127.0.0.1:4173 ，选择或拖入 `.fbx`。右侧层级树展示 `FbxScene` 节点；点击节点会用 BoxHelper 高亮，不移动相机。Z-up 文件会绕 X 转 -90° 转到 Three.js 的 Y-up（与 FBXLoader 相同）。
+打开 http://127.0.0.1:4173 ，选择或拖入 `.fbx`。左侧 Hierarchy 展示 `FbxScene` 节点；点击节点会用 BoxHelper 高亮，不移动相机。Z-up 文件会绕 X 转 -90° 转到 Three.js 的 Y-up（与 FBXLoader 相同）。
